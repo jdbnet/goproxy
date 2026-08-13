@@ -95,6 +95,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+          AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT_URL }}
         run: |
           aws s3 cp goproxy-amd64 s3://apps/goproxy-amd64 --endpoint-url "$R2_ENDPOINT"
