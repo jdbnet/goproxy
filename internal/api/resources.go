@@ -594,3 +594,22 @@ func (s *Server) putHooks(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, hooks)
 }
 
+func (s *Server) testHook(w http.ResponseWriter, r *http.Request) {
+	var hook proxyconfig.Webhook
+	if !decodeJSON(w, r, &hook) {
+		return
+	}
+	if hook.URL == "" {
+		writeErr(w, http.StatusBadRequest, "url is required")
+		return
+	}
+	if s.notify == nil {
+		writeErr(w, http.StatusServiceUnavailable, "notifications unavailable")
+		return
+	}
+	if err := s.notify.Test(hook); err != nil {
+		writeErr(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}

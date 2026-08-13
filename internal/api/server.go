@@ -23,16 +23,16 @@ import (
 )
 
 type Server struct {
-	app    *config.Config
-	auth   *auth.Service
-	audit  *audit.Log
-	cfg    *ConfigService
-	engine *proxy.Engine
-	certs  *tlsx.Store
-	metrics *metrics.Metrics
-	backup *backup.Manager
-	git    *gitsync.Sync
-	notify *notify.Notifier
+	app      *config.Config
+	auth     *auth.Service
+	audit    *audit.Log
+	cfg      *ConfigService
+	engine   *proxy.Engine
+	certs    *tlsx.Store
+	metrics  *metrics.Metrics
+	backup   *backup.Manager
+	git      *gitsync.Sync
+	notify   *notify.Notifier
 	hasUsers bool
 }
 
@@ -94,6 +94,7 @@ func (s *Server) Handler() http.Handler {
 	prot.HandleFunc("GET /api/v1/settings", auth.Require("settings:read", s.getSettings))
 	prot.HandleFunc("GET /api/v1/notifications", auth.Require("settings:read", s.listHooks))
 	prot.HandleFunc("PUT /api/v1/notifications", auth.Require("settings:write", s.putHooks))
+	prot.HandleFunc("POST /api/v1/notifications/test", auth.Require("settings:write", s.testHook))
 
 	mux.Handle("/api/v1/", s.protect(prot))
 	mux.Handle("/", spaHandler())

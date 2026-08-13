@@ -24,6 +24,24 @@ components:
       type: object
       properties:
         error: { type: string }
+    Webhook:
+      type: object
+      required: [url]
+      properties:
+        id: { type: string, description: Optional on create. Generated from the URL host. }
+        url: { type: string, description: HTTP or HTTPS endpoint that accepts a POST. }
+        format:
+          type: string
+          enum: [generic, discord, slack]
+          description: Payload shape. generic is {type, title, body, severity}.
+        triggers:
+          type: array
+          items: { type: string }
+          description: >
+            Event types to send. Empty means all events.
+            Known types: backend.up, backend.down, cert.renew.success,
+            cert.renew.failure, git.conflict, errors.high, backup.failure.
+            Prefixes like backend.* and * are allowed.
     Frontend:
       type: object
       properties:
@@ -401,3 +419,37 @@ paths:
       summary: App settings (sanitized)
       responses:
         '200': { description: settings }
+  /notifications:
+    get:
+      summary: List webhooks
+      responses:
+        '200':
+          description: webhooks
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Webhook' }
+    put:
+      summary: Replace webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/Webhook' }
+      responses:
+        '200': { description: saved }
+  /notifications/test:
+    post:
+      summary: Send a test event to a webhook URL
+      description: Does not persist the webhook. Works with an unsaved form.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Webhook' }
+      responses:
+        '200': { description: delivered }
+        '502': { description: remote rejected or unreachable }

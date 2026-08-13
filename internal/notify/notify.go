@@ -3,6 +3,7 @@ package notify
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -43,8 +44,22 @@ func (n *Notifier) Send(ev Event) {
 		if !matchTrigger(h.Triggers, ev.Type) {
 			continue
 		}
-		go n.post(h, ev)
+		go func(hook proxyconfig.Webhook) {
+			if _, err := n.Deliver(hook, ev); err != nil {
+				slog.Error("webhook failed", "id", hook.ID, "err", err)
+			}
+		}(h)
 	}
+}
+
+func (n *Notifier) Test(h proxyconfig.Webhook) error {
+	_, err := n.Deliver(h, Event{
+		Type:     "test",
+		Title:    "GoProxy test",
+		Body:     "If you can read this, the webhook is working.",
+		Severity: "info",
+	})
+	return err
 }
 
 func matchTrigger(triggers []string, typ string) bool {
@@ -62,7 +77,10 @@ func matchTrigger(triggers []string, typ string) bool {
 	return false
 }
 
-func (n *Notifier) post(h proxyconfig.Webhook, ev Event) {
+func (n *Notifier) Deliver(h proxyconfig.Webhook, ev Event) (int, error) {
+	if !strings.HasPrefix(h.URL, "https://") && !strings.HasPrefix(h.URL, "http://") {
+		return 0, fmt.Errorf("webhook URL must be http or https")
+	}
 	var body []byte
 	var err error
 	switch h.Format {
@@ -82,22 +100,22 @@ func (n *Notifier) post(h proxyconfig.Webhook, ev Event) {
 		body, err = json.Marshal(ev)
 	}
 	if err != nil {
-		return
+		return 0, err
 	}
 	req, err := http.NewRequest(http.MethodPost, h.URL, bytes.NewReader(body))
 	if err != nil {
-		return
+		return 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := n.client.Do(req)
 	if err != nil {
-		slog.Error("webhook failed", "id", h.ID, "err", err)
-		return
+		return 0, err
 	}
 	resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		slog.Error("webhook status", "id", h.ID, "status", resp.StatusCode)
+		return resp.StatusCode, fmt.Errorf("webhook returned %s", resp.Status)
 	}
+	return resp.StatusCode, nil
 }
 
 func discordColor(sev string) int {
