@@ -94,6 +94,25 @@ The UI listen address in `config.yaml` is only for admin. Public traffic uses th
 
 `log_level` is `error`, `warn`, `info` (default), or `debug`. Per-request access lines are debug only, so a busy site will not fill the journal. Errors, health changes, and startup stay at info. Override with `GOPROXY_LOG_LEVEL`.
 
+## Git sync
+
+Git stores `proxy.yaml` (and anything else in that directory). On startup GoProxy **pulls**. It does not upload your current file first. After that, each UI save commits and pushes.
+
+If the remote already has a `proxy.yaml`, that file replaces the local one and is applied. An empty or starter file on the remote will wipe routes you added in the UI.
+
+If you configured the box first, commit the live `/etc/goproxy/proxy.yaml` to the repo, then enable Git and restart:
+
+```yaml
+git:
+  enabled: true
+  url: git@git.example.com:you/goproxy-config.git
+  branch: main
+  auth: ssh
+  key_path: /etc/goproxy/deploy_key
+```
+
+`auth: token` uses `token` over HTTPS. A failed pull keeps the local file and logs an error.
+
 ## Auto update
 
 Installed releases check `https://apps.jdbnet.co.uk/goproxy-amd64` (or `goproxy-arm64`) on startup. If the published checksum differs, the binary replaces itself and restarts. A failed check is logged and the current binary keeps running.
