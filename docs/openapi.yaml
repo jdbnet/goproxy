@@ -73,6 +73,12 @@ components:
       properties:
         username: { type: string, example: admin }
         password: { type: string, format: password, example: change-me }
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password: { type: string, format: password, example: old-password }
+        new_password: { type: string, format: password, example: new-password }
     LoginResponse:
       type: object
       properties:
@@ -598,6 +604,26 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Actor' }
+  /auth/password:
+    post:
+      tags: [Auth]
+      summary: Change own password
+      description: Session users only. API keys cannot change a password. Requires the current password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+            example:
+              current_password: old-password
+              new_password: new-password
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusOK' }
+        '400': { $ref: '#/components/responses/Error' }
   /frontends:
     get:
       tags: [Frontends]

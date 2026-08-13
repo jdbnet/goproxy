@@ -36,3 +36,31 @@ func TestUserAndAPIKey(t *testing.T) {
 		t.Fatalf("lookup: %v %+v", err, looked)
 	}
 }
+
+func TestChangePassword(t *testing.T) {
+	db, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	s := New(db.SQL)
+	u, err := s.CreateUser("admin", "secret", RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ChangePassword(u.ID, "nope", "newer"); err == nil {
+		t.Fatal("expected current password check to fail")
+	}
+	if err := s.ChangePassword(u.ID, "secret", "secret"); err == nil {
+		t.Fatal("expected same-password reject")
+	}
+	if err := s.ChangePassword(u.ID, "secret", "newer"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Authenticate("admin", "newer"); err != nil {
+		t.Fatalf("new password: %v", err)
+	}
+	if _, err := s.Authenticate("admin", "secret"); err == nil {
+		t.Fatal("old password still works")
+	}
+}

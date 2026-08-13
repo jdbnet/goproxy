@@ -55,6 +55,7 @@ func (s *Server) Handler() http.Handler {
 	prot := http.NewServeMux()
 	prot.HandleFunc("POST /api/v1/auth/logout", s.logout)
 	prot.HandleFunc("GET /api/v1/auth/me", s.me)
+	prot.HandleFunc("POST /api/v1/auth/password", s.changePassword)
 	prot.HandleFunc("GET /api/v1/frontends", auth.Require("frontends:read", s.listFrontends))
 	prot.HandleFunc("POST /api/v1/frontends", auth.Require("frontends:write", s.createFrontend))
 	prot.HandleFunc("PUT /api/v1/frontends/{id}", auth.Require("frontends:write", s.updateFrontend))
@@ -174,6 +175,27 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	a := auth.ActorFrom(r.Context())
 	writeJSON(w, http.StatusOK, a)
+}
+
+func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
+	a := auth.ActorFrom(r.Context())
+	if a == nil || a.User == nil {
+		writeErr(w, http.StatusBadRequest, "password can only be changed from a user session")
+		return
+	}
+	var req struct {
+		Current string `json:"current_password"`
+		Next    string `json:"new_password"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if err := s.auth.ChangePassword(a.User.ID, req.Current, req.Next); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	_ = s.audit.Record(a.Type, a.ID, "auth.password", "users/"+a.User.Username, nil, nil)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) swaggerUI(w http.ResponseWriter, r *http.Request) {

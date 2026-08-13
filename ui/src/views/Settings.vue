@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { Pencil, Send, Trash2 } from '@lucide/vue'
+import ChangePasswordForm from '@/components/ChangePasswordForm.vue'
 import api from '@/api/client'
 
 const TRIGGERS = [
@@ -217,6 +218,7 @@ onMounted(load)
       <button class="btn-secondary" type="button" @click="syncGit">Pull Git</button>
       <button class="btn-secondary" type="button" @click="backupNow">Backup state.db</button>
     </div>
+    <ChangePasswordForm />
 
     <form class="card space-y-4" @submit.prevent="save">
       <div>

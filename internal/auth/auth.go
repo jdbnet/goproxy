@@ -108,11 +108,11 @@ type APIKey struct {
 }
 
 type Actor struct {
-	Type    string
-	ID      string
-	User    *User
-	Key     *APIKey
-	Scopes  []string
+	Type   string
+	ID     string
+	User   *User
+	Key    *APIKey
+	Scopes []string
 }
 
 type contextKey int
@@ -181,6 +181,28 @@ func (s *Service) CreateUser(username, password string, role Role) (*User, error
 	}
 	id, _ := res.LastInsertId()
 	return &User{ID: id, Username: username, Role: role, CreatedAt: now}, nil
+}
+
+func (s *Service) ChangePassword(id int64, current, next string) error {
+	if current == "" || next == "" {
+		return fmt.Errorf("current and new password are required")
+	}
+	if current == next {
+		return fmt.Errorf("new password must be different")
+	}
+	u, err := s.GetUser(id)
+	if err != nil {
+		return err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(current)); err != nil {
+		return fmt.Errorf("current password is incorrect")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(next), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, string(hash), id)
+	return err
 }
 
 func (s *Service) UpdateUser(id int64, password string, role Role) error {

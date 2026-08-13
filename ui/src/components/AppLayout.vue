@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import {
   Menu, X, LayoutDashboard, Radio, Route, Server, Shield, Users, KeyRound, ScrollText, Settings, CircleHelp, LogOut, Sun, Moon,
 } from '@lucide/vue'
+import ChangePasswordForm from '@/components/ChangePasswordForm.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 
@@ -11,6 +12,7 @@ const route = useRoute()
 const auth = useAuthStore()
 const theme = useThemeStore()
 const sidebarOpen = ref(false)
+const showPassword = ref(false)
 
 const nav = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, match: (p) => p === '/' },
@@ -61,7 +63,18 @@ async function logout() {
           {{ item.label }}
         </RouterLink>
       </nav>
-      <div class="border-t border-default p-3">
+      <div class="border-t border-default p-3 space-y-2">
+        <template v-if="auth.authRequired && auth.authenticated">
+          <button
+            type="button"
+            class="btn-secondary w-full justify-start gap-1.5 px-2.5 py-2 text-xs"
+            @click="showPassword = !showPassword"
+          >
+            <KeyRound class="h-4 w-4 shrink-0" />
+            <span>{{ showPassword ? 'Hide password form' : 'Change password' }}</span>
+          </button>
+          <ChangePasswordForm v-if="showPassword" compact />
+        </template>
         <div class="flex items-stretch gap-1.5">
           <button type="button" class="btn-secondary shrink-0 px-2.5 py-2" @click="theme.toggle()">
             <Sun v-if="theme.dark" class="h-4 w-4" />
