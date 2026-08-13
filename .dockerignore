@@ -1,0 +1,13 @@
+.git
+.gitea
+ui/node_modules
+ui/dist
+goproxy
+goproxy-amd64
+goproxy-arm64
+*.sha256
+*.db
+*.db-wal
+*.db-shm
+data
+agent-transcripts
