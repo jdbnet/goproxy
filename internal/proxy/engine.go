@@ -415,6 +415,7 @@ func (e *Engine) reverseProxy(acl *proxyconfig.ACL) http.Handler {
 			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 				health.MarkPassiveFailure(srv)
+				slog.Warn("proxy error", "acl", acl.ID, "host", r.Host, "path", r.URL.Path, "backend", srv.Target(), "err", err)
 				http.Error(w, "bad gateway", http.StatusBadGateway)
 			},
 			FlushInterval: 100 * time.Millisecond,
@@ -523,6 +524,10 @@ func (s *statusRecorder) Flush() {
 	if f, ok := s.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
+}
+
+func (s *statusRecorder) Unwrap() http.ResponseWriter {
+	return s.ResponseWriter
 }
 
 func (s *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {

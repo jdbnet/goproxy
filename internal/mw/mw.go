@@ -1,9 +1,11 @@
 package mw
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -147,6 +149,15 @@ func (h *headerRewriter) Flush() {
 
 func (h *headerRewriter) Unwrap() http.ResponseWriter {
 	return h.ResponseWriter
+}
+
+func (h *headerRewriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h.apply()
+	hj, ok := h.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("hijack not supported")
+	}
+	return hj.Hijack()
 }
 
 func withPathRewrite(next http.Handler, m *proxyconfig.Middleware) http.Handler {

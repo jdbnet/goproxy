@@ -1,6 +1,8 @@
 package mw
 
 import (
+	"bufio"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -100,6 +102,28 @@ func TestIPAllow(t *testing.T) {
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("allowed code %d", rec.Code)
+	}
+}
+
+type hijackRecorder struct {
+	http.ResponseWriter
+}
+
+func (hijackRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return nil, nil, nil
+}
+
+func TestResponseHeadersPreserveHijack(t *testing.T) {
+	acl := &proxyconfig.ACL{Middleware: &proxyconfig.Middleware{
+		ResponseHeadersRemove: []string{"X-Frame-Options"},
+	}}
+	var inner http.ResponseWriter
+	h := Apply(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inner = w
+	}), acl, true)
+	h.ServeHTTP(hijackRecorder{httptest.NewRecorder()}, httptest.NewRequest(http.MethodGet, "/", nil))
+	if _, ok := inner.(http.Hijacker); !ok {
+		t.Fatal("response wrapper must keep http.Hijacker for websockets")
 	}
 }
 
