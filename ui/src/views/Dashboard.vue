@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import api from '@/api/client'
 import Sparkline from '@/components/Sparkline.vue'
 import { formatBytes, formatLatency, formatUptime, trafficLabel, trafficTitle } from '@/lib/bytes'
@@ -8,6 +8,13 @@ const live = ref({})
 const history = ref([])
 const limitation = ref('')
 const status = ref([])
+const rows = computed(() => [...status.value].sort((a, b) => {
+  if (!!a.healthy !== !!b.healthy) return a.healthy ? 1 : -1
+  const an = (a.name || a.backend || '').toLowerCase()
+  const bn = (b.name || b.backend || '').toLowerCase()
+  if (an !== bn) return an.localeCompare(bn)
+  return (a.target || '').localeCompare(b.target || '')
+}))
 let timer
 
 async function refresh() {
@@ -93,7 +100,7 @@ onUnmounted(() => clearInterval(timer))
           </tr>
         </thead>
         <tbody>
-          <tr v-for="s in status" :key="s.backend + s.target" class="table-row-hover">
+          <tr v-for="s in rows" :key="s.backend + '\n' + s.target" class="table-row-hover">
             <td class="py-2">{{ s.name || s.backend }}</td>
             <td>{{ s.target }}</td>
             <td>{{ s.role }}</td>
@@ -109,7 +116,7 @@ onUnmounted(() => clearInterval(timer))
             <td :title="trafficTitle(s)">{{ trafficLabel(s) }}</td>
             <td>{{ s.conns }}</td>
           </tr>
-          <tr v-if="!status.length">
+          <tr v-if="!rows.length">
             <td colspan="7" class="py-4 text-muted">No backends configured.</td>
           </tr>
         </tbody>

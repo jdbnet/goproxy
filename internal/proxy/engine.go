@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -585,6 +586,22 @@ func (e *Engine) BackendStatus() []ServerStatus {
 			})
 		}
 	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Healthy != out[j].Healthy {
+			return !out[i].Healthy && out[j].Healthy
+		}
+		ni, nj := out[i].Name, out[j].Name
+		if ni == "" {
+			ni = out[i].Backend
+		}
+		if nj == "" {
+			nj = out[j].Backend
+		}
+		if c := strings.Compare(strings.ToLower(ni), strings.ToLower(nj)); c != 0 {
+			return c < 0
+		}
+		return out[i].Target < out[j].Target
+	})
 	return out
 }
 
