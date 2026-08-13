@@ -39,6 +39,8 @@ import { RouterLink } from 'vue-router'
           Both can share the same 443 listener.
           Choose Forward, Redirect, or Force HTTPS, then only the matching fields appear.
           Forward can be open, IP locked, password protected, or both.
+          Request and response headers can be added or stripped (Home Assistant CSP / X-Frame-Options, extra forwarded headers).
+          X-Forwarded-Proto, Host, For, and Port are set automatically.
         </li>
         <li>
           <RouterLink to="/backends" class="text-accent">Backends</RouterLink>

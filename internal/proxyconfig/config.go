@@ -12,11 +12,11 @@ import (
 )
 
 type Config struct {
-	Frontends     []Frontend     `yaml:"frontends"`
-	ACLs          []ACL          `yaml:"acls"`
-	Backends      []Backend      `yaml:"backends"`
-	Certificates  []Certificate  `yaml:"certificates"`
-	Notifications Notifications  `yaml:"notifications"`
+	Frontends     []Frontend    `yaml:"frontends"`
+	ACLs          []ACL         `yaml:"acls"`
+	Backends      []Backend     `yaml:"backends"`
+	Certificates  []Certificate `yaml:"certificates"`
+	Notifications Notifications `yaml:"notifications"`
 }
 
 type Frontend struct {
@@ -68,17 +68,19 @@ type Match struct {
 }
 
 type Middleware struct {
-	HTTPSRedirect    bool              `yaml:"https_redirect,omitempty" json:"https_redirect,omitempty"`
-	DomainRedirect   string            `yaml:"domain_redirect,omitempty" json:"domain_redirect,omitempty"`
-	RedirectURL      string            `yaml:"redirect_url,omitempty" json:"redirect_url,omitempty"`
-	RedirectKeepPath *bool             `yaml:"redirect_keep_path,omitempty" json:"redirect_keep_path,omitempty"`
-	RedirectCode     int               `yaml:"redirect_code,omitempty" json:"redirect_code,omitempty"`
-	HeadersAdd       map[string]string `yaml:"headers_add,omitempty" json:"headers_add,omitempty"`
-	HeadersRemove    []string          `yaml:"headers_remove,omitempty" json:"headers_remove,omitempty"`
-	PathRewrite      *PathRewrite      `yaml:"path_rewrite,omitempty" json:"path_rewrite,omitempty"`
-	BasicAuth        *BasicAuth        `yaml:"basic_auth,omitempty" json:"basic_auth,omitempty"`
-	IPAllow          []string          `yaml:"ip_allow,omitempty" json:"ip_allow,omitempty"`
-	IPDeny           []string          `yaml:"ip_deny,omitempty" json:"ip_deny,omitempty"`
+	HTTPSRedirect         bool              `yaml:"https_redirect,omitempty" json:"https_redirect,omitempty"`
+	DomainRedirect        string            `yaml:"domain_redirect,omitempty" json:"domain_redirect,omitempty"`
+	RedirectURL           string            `yaml:"redirect_url,omitempty" json:"redirect_url,omitempty"`
+	RedirectKeepPath      *bool             `yaml:"redirect_keep_path,omitempty" json:"redirect_keep_path,omitempty"`
+	RedirectCode          int               `yaml:"redirect_code,omitempty" json:"redirect_code,omitempty"`
+	HeadersAdd            map[string]string `yaml:"headers_add,omitempty" json:"headers_add,omitempty"`
+	HeadersRemove         []string          `yaml:"headers_remove,omitempty" json:"headers_remove,omitempty"`
+	ResponseHeadersAdd    map[string]string `yaml:"response_headers_add,omitempty" json:"response_headers_add,omitempty"`
+	ResponseHeadersRemove []string          `yaml:"response_headers_remove,omitempty" json:"response_headers_remove,omitempty"`
+	PathRewrite           *PathRewrite      `yaml:"path_rewrite,omitempty" json:"path_rewrite,omitempty"`
+	BasicAuth             *BasicAuth        `yaml:"basic_auth,omitempty" json:"basic_auth,omitempty"`
+	IPAllow               []string          `yaml:"ip_allow,omitempty" json:"ip_allow,omitempty"`
+	IPDeny                []string          `yaml:"ip_deny,omitempty" json:"ip_deny,omitempty"`
 }
 
 func (m *Middleware) HasRedirect() bool {
@@ -101,11 +103,11 @@ type PathRewrite struct {
 }
 
 type BasicAuth struct {
-	Realm    string         `yaml:"realm,omitempty" json:"realm,omitempty"`
-	Paths    []string       `yaml:"paths,omitempty" json:"paths,omitempty"`
+	Realm    string          `yaml:"realm,omitempty" json:"realm,omitempty"`
+	Paths    []string        `yaml:"paths,omitempty" json:"paths,omitempty"`
 	Users    []BasicAuthUser `yaml:"users,omitempty" json:"users,omitempty"`
-	Username string         `yaml:"username,omitempty" json:"username,omitempty"`
-	Password string         `yaml:"password,omitempty" json:"password,omitempty"`
+	Username string          `yaml:"username,omitempty" json:"username,omitempty"`
+	Password string          `yaml:"password,omitempty" json:"password,omitempty"`
 }
 
 type BasicAuthUser struct {
@@ -135,15 +137,15 @@ type Backend struct {
 	Name      string          `yaml:"name,omitempty" json:"name,omitempty"`
 	Algorithm string          `yaml:"algorithm" json:"algorithm"`
 	Servers   []BackendServer `yaml:"servers" json:"servers"`
-	Health    *HealthCheck   `yaml:"health,omitempty" json:"health,omitempty"`
-	RateLimit *RateLimit     `yaml:"rate_limit,omitempty" json:"rate_limit,omitempty"`
+	Health    *HealthCheck    `yaml:"health,omitempty" json:"health,omitempty"`
+	RateLimit *RateLimit      `yaml:"rate_limit,omitempty" json:"rate_limit,omitempty"`
 }
 
 type BackendServer struct {
-	URL      string `yaml:"url,omitempty" json:"url,omitempty"`
-	Address  string `yaml:"address,omitempty" json:"address,omitempty"`
-	Role     string `yaml:"role,omitempty" json:"role,omitempty"`
-	Weight   int    `yaml:"weight,omitempty" json:"weight,omitempty"`
+	URL     string `yaml:"url,omitempty" json:"url,omitempty"`
+	Address string `yaml:"address,omitempty" json:"address,omitempty"`
+	Role    string `yaml:"role,omitempty" json:"role,omitempty"`
+	Weight  int    `yaml:"weight,omitempty" json:"weight,omitempty"`
 }
 
 type HealthCheck struct {
@@ -158,13 +160,13 @@ type HealthCheck struct {
 }
 
 type Certificate struct {
-	ID           string   `yaml:"id" json:"id"`
-	Name         string   `yaml:"name,omitempty" json:"name,omitempty"`
-	Domains      []string `yaml:"domains" json:"domains"`
-	Challenge    string   `yaml:"challenge" json:"challenge"`
-	DNSProvider  string   `yaml:"dns_provider,omitempty" json:"dns_provider,omitempty"`
-	CertFile     string   `yaml:"cert_file,omitempty" json:"cert_file,omitempty"`
-	KeyFile      string   `yaml:"key_file,omitempty" json:"key_file,omitempty"`
+	ID          string   `yaml:"id" json:"id"`
+	Name        string   `yaml:"name,omitempty" json:"name,omitempty"`
+	Domains     []string `yaml:"domains" json:"domains"`
+	Challenge   string   `yaml:"challenge" json:"challenge"`
+	DNSProvider string   `yaml:"dns_provider,omitempty" json:"dns_provider,omitempty"`
+	CertFile    string   `yaml:"cert_file,omitempty" json:"cert_file,omitempty"`
+	KeyFile     string   `yaml:"key_file,omitempty" json:"key_file,omitempty"`
 }
 
 type Notifications struct {

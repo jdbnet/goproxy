@@ -69,6 +69,18 @@ components:
             ip_deny:
               type: array
               items: { type: string }
+            headers_add:
+              type: object
+              additionalProperties: { type: string }
+            headers_remove:
+              type: array
+              items: { type: string }
+            response_headers_add:
+              type: object
+              additionalProperties: { type: string }
+            response_headers_remove:
+              type: array
+              items: { type: string }
             basic_auth:
               type: object
               properties:

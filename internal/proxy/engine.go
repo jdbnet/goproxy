@@ -42,6 +42,7 @@ type Engine struct {
 	frontends map[string]*frontend
 	conns     atomic.Int64
 	access    *slog.Logger
+	transport http.RoundTripper
 }
 
 type frontend struct {
@@ -106,6 +107,7 @@ func New(certs *tlsx.Store, pools *lb.Registry, h *health.Checker, m *metrics.Me
 		notify:    n,
 		frontends: map[string]*frontend{},
 		access:    access,
+		transport: backendTransport(),
 	}
 }
 
@@ -404,15 +406,12 @@ func (e *Engine) reverseProxy(acl *proxyconfig.ACL) http.Handler {
 		r.Body = body
 		rec := &statusRecorder{ResponseWriter: w, status: 200}
 		proxy := &httputil.ReverseProxy{
+			Transport: e.transport,
 			Rewrite: func(pr *httputil.ProxyRequest) {
 				pr.SetURL(srv.URL)
 				pr.Out.Host = pr.In.Host
-				pr.Out.Header.Set("X-Forwarded-Host", pr.In.Host)
-				if pr.In.TLS != nil {
-					pr.Out.Header.Set("X-Forwarded-Proto", "https")
-				} else {
-					pr.Out.Header.Set("X-Forwarded-Proto", "http")
-				}
+				pr.SetXForwarded()
+				pr.Out.Header.Set("X-Forwarded-Port", forwardedPort(pr.In))
 			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 				health.MarkPassiveFailure(srv)
@@ -431,6 +430,22 @@ func (e *Engine) reverseProxy(acl *proxyconfig.ACL) http.Handler {
 			e.maybeErrorRate()
 		}
 	})
+}
+
+func backendTransport() http.RoundTripper {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	return t
+}
+
+func forwardedPort(r *http.Request) string {
+	if _, p, err := net.SplitHostPort(r.Host); err == nil && p != "" {
+		return p
+	}
+	if r.TLS != nil {
+		return "443"
+	}
+	return "80"
 }
 
 func (e *Engine) maybeErrorRate() {

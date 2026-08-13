@@ -33,6 +33,10 @@ function emptyForm() {
     auth_realm: '',
     auth_users: '',
     auth_paths: '',
+    request_headers_add: '',
+    request_headers_remove: '',
+    response_headers_add: '',
+    response_headers_remove: '',
   }
 }
 
@@ -59,6 +63,24 @@ function parseUsers(text) {
     if (i < 0) return { username: line, password: '' }
     return { username: line.slice(0, i).trim(), password: line.slice(i + 1) }
   }).filter((u) => u.username)
+}
+
+function parseHeaders(text) {
+  const out = {}
+  for (const line of String(text || '').split('\n')) {
+    const t = line.trim()
+    if (!t) continue
+    const i = t.indexOf(':')
+    if (i < 1) continue
+    const name = t.slice(0, i).trim()
+    const value = t.slice(i + 1).trim()
+    if (name) out[name] = value
+  }
+  return out
+}
+
+function formatHeaders(map) {
+  return Object.entries(map || {}).map(([k, v]) => `${k}: ${v}`).join('\n')
 }
 
 function formatUsers(auth) {
@@ -112,6 +134,14 @@ function buildMiddleware() {
       }
     }
   }
+  const reqAdd = parseHeaders(form.value.request_headers_add)
+  const reqDel = parseLines(form.value.request_headers_remove)
+  const resAdd = parseHeaders(form.value.response_headers_add)
+  const resDel = parseLines(form.value.response_headers_remove)
+  if (Object.keys(reqAdd).length) mw.headers_add = reqAdd
+  if (reqDel.length) mw.headers_remove = reqDel
+  if (Object.keys(resAdd).length) mw.response_headers_add = resAdd
+  if (resDel.length) mw.response_headers_remove = resDel
   return Object.keys(mw).length ? mw : undefined
 }
 
@@ -166,6 +196,9 @@ function extras(a) {
   const m = a.middleware || {}
   if (m.ip_allow?.length || m.ip_deny?.length) out.push('IP lock')
   if (m.basic_auth) out.push('Auth')
+  if (m.headers_add || m.headers_remove?.length || m.response_headers_add || m.response_headers_remove?.length) {
+    out.push('Headers')
+  }
   return out
 }
 
@@ -253,6 +286,10 @@ function edit(a) {
     auth_realm: m.basic_auth?.realm || '',
     auth_users: formatUsers(m.basic_auth),
     auth_paths: (m.basic_auth?.paths || []).join('\n'),
+    request_headers_add: formatHeaders(m.headers_add),
+    request_headers_remove: (m.headers_remove || []).join('\n'),
+    response_headers_add: formatHeaders(m.response_headers_add),
+    response_headers_remove: (m.response_headers_remove || []).join('\n'),
   }
 }
 
@@ -413,6 +450,27 @@ onMounted(load)
           <label class="mb-1 block text-sm text-muted">Users</label>
           <textarea v-model="form.auth_users" class="input-field min-h-20 font-mono text-xs" placeholder="user:password" />
           <p class="mt-1 text-xs text-muted">One username:password per line.</p>
+        </div>
+      </div>
+
+      <div v-if="form.action === 'forward'" class="grid gap-3 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm text-muted">Add request headers</label>
+          <textarea v-model="form.request_headers_add" class="input-field min-h-20 font-mono text-xs" placeholder="X-Example: value" />
+          <p class="mt-1 text-xs text-muted">One Name: value per line. Sent to the backend. X-Forwarded-Proto, Host, For, and Port are set for you.</p>
+        </div>
+        <div>
+          <label class="mb-1 block text-sm text-muted">Remove request headers</label>
+          <textarea v-model="form.request_headers_remove" class="input-field min-h-20 font-mono text-xs" placeholder="Cookie" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm text-muted">Add response headers</label>
+          <textarea v-model="form.response_headers_add" class="input-field min-h-20 font-mono text-xs" placeholder="Content-Security-Policy: frame-ancestors 'self' https://dashboard.example.com" />
+          <p class="mt-1 text-xs text-muted">Overwrites the same header from the backend. Use this for CSP or embedding.</p>
+        </div>
+        <div>
+          <label class="mb-1 block text-sm text-muted">Remove response headers</label>
+          <textarea v-model="form.response_headers_remove" class="input-field min-h-20 font-mono text-xs" placeholder="X-Frame-Options" />
         </div>
       </div>
 

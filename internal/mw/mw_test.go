@@ -103,6 +103,29 @@ func TestIPAllow(t *testing.T) {
 	}
 }
 
+func TestResponseHeaders(t *testing.T) {
+	acl := &proxyconfig.ACL{Middleware: &proxyconfig.Middleware{
+		ResponseHeadersRemove: []string{"X-Frame-Options"},
+		ResponseHeadersAdd:    map[string]string{"Content-Security-Policy": "frame-ancestors 'self' https://dashboard.example.com"},
+	}}
+	h := Apply(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Other", "keep")
+		w.WriteHeader(http.StatusOK)
+	}), acl, true)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	if rec.Header().Get("X-Frame-Options") != "" {
+		t.Fatalf("X-Frame-Options still set")
+	}
+	if rec.Header().Get("X-Other") != "keep" {
+		t.Fatalf("lost unrelated header")
+	}
+	if rec.Header().Get("Content-Security-Policy") != "frame-ancestors 'self' https://dashboard.example.com" {
+		t.Fatalf("csp %q", rec.Header().Get("Content-Security-Policy"))
+	}
+}
+
 func TestIPDeny(t *testing.T) {
 	acl := &proxyconfig.ACL{Middleware: &proxyconfig.Middleware{IPDeny: []string{"10.0.0.1"}}}
 	h := Apply(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

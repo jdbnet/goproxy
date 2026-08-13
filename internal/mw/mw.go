@@ -23,6 +23,7 @@ func Apply(next http.Handler, acl *proxyconfig.ACL, frontendTLS bool) http.Handl
 	h = withRedirects(h, m, frontendTLS)
 	h = withBasicAuth(h, m)
 	h = withIPFilter(h, m)
+	h = withResponseHeaders(h, m)
 	return h
 }
 
@@ -92,6 +93,60 @@ func withHeaders(next http.Handler, m *proxyconfig.Middleware) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func withResponseHeaders(next http.Handler, m *proxyconfig.Middleware) http.Handler {
+	if len(m.ResponseHeadersAdd) == 0 && len(m.ResponseHeadersRemove) == 0 {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(&headerRewriter{
+			ResponseWriter: w,
+			add:            m.ResponseHeadersAdd,
+			remove:         m.ResponseHeadersRemove,
+		}, r)
+	})
+}
+
+type headerRewriter struct {
+	http.ResponseWriter
+	add    map[string]string
+	remove []string
+	wrote  bool
+}
+
+func (h *headerRewriter) apply() {
+	if h.wrote {
+		return
+	}
+	h.wrote = true
+	for _, name := range h.remove {
+		h.Header().Del(name)
+	}
+	for k, v := range h.add {
+		h.Header().Set(k, v)
+	}
+}
+
+func (h *headerRewriter) WriteHeader(code int) {
+	h.apply()
+	h.ResponseWriter.WriteHeader(code)
+}
+
+func (h *headerRewriter) Write(p []byte) (int, error) {
+	h.apply()
+	return h.ResponseWriter.Write(p)
+}
+
+func (h *headerRewriter) Flush() {
+	h.apply()
+	if f, ok := h.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (h *headerRewriter) Unwrap() http.ResponseWriter {
+	return h.ResponseWriter
 }
 
 func withPathRewrite(next http.Handler, m *proxyconfig.Middleware) http.Handler {
