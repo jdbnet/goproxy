@@ -63,27 +63,26 @@ async function logout() {
           {{ item.label }}
         </RouterLink>
       </nav>
-      <div class="border-t border-default p-3 space-y-2">
-        <template v-if="auth.authRequired && auth.authenticated">
-          <button
-            type="button"
-            class="btn-secondary w-full justify-start gap-1.5 px-2.5 py-2 text-xs"
-            @click="showPassword = !showPassword"
-          >
-            <KeyRound class="h-4 w-4 shrink-0" />
-            <span>{{ showPassword ? 'Hide password form' : 'Change password' }}</span>
-          </button>
-          <ChangePasswordForm v-if="showPassword" compact />
-        </template>
+      <div class="space-y-1.5 border-t border-default p-3">
+        <ChangePasswordForm v-if="showPassword" compact />
         <div class="flex items-stretch gap-1.5">
           <button type="button" class="btn-secondary shrink-0 px-2.5 py-2" @click="theme.toggle()">
             <Sun v-if="theme.dark" class="h-4 w-4" />
             <Moon v-else class="h-4 w-4" />
           </button>
           <button
+            v-if="auth.authRequired && auth.authenticated"
+            type="button"
+            class="btn-secondary min-w-0 flex-1 px-2.5 py-2 text-xs"
+            @click="showPassword = !showPassword"
+          >
+            <KeyRound class="h-4 w-4 shrink-0" />
+            <span>{{ showPassword ? 'Cancel' : 'Password' }}</span>
+          </button>
+          <button
             v-if="auth.authRequired"
             type="button"
-            class="btn-secondary min-w-0 flex-1 gap-1.5 px-2.5 py-2 text-xs"
+            class="btn-secondary min-w-0 flex-1 px-2.5 py-2 text-xs"
             @click="logout"
           >
             <LogOut class="h-4 w-4 shrink-0" />
