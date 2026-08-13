@@ -1,0 +1,28 @@
+listen: 127.0.0.1:8080
+data_dir: /var/lib/goproxy
+proxy_config: /etc/goproxy/proxy.yaml
+acme_email: ""
+acme_directory: https://acme-v02.api.letsencrypt.org/directory
+git:
+  enabled: false
+  url: ""
+  branch: main
+  auth: ssh
+  key_path: /etc/goproxy/deploy_key
+  token: ""
+backup:
+  enabled: true
+  schedule: "0 3 * * *"
+  retention_days: 14
+  dest: dir
+  dir: /var/lib/goproxy/backups
+tls:
+  renew_check: 24h
+  renew_before: 720h
+  jitter: 1h
+  retry_backoff: 15m
+  retry_max: 8h
+update:
+  enabled: false
+  url: ""
+  allow_dev: false

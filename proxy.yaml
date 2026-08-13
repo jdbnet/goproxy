@@ -1,0 +1,18 @@
+frontends:
+  - id: http
+    bind: 0.0.0.0:8081
+  - id: https
+    bind: 0.0.0.0:8443
+    tls:
+      enabled: true
+      min_version: "1.2"
+      hsts: true
+
+acls: []
+
+backends: []
+
+certificates: []
+
+notifications:
+  webhooks: []

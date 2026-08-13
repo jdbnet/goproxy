@@ -1,0 +1,9 @@
+ui/dist/
+ui/node_modules/
+/goproxy
+/goproxy-amd64
+/goproxy-arm64
+*.db
+*.db-wal
+*.db-shm
+/data/

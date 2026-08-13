@@ -1,0 +1,390 @@
+openapi: 3.0.3
+info:
+  title: GoProxy API
+  version: 1.0.0
+  description: |
+    Management API for GoProxy. Dashboard session cookies and API keys share this surface.
+
+    API keys use `Authorization: Bearer gpk_...` with least-privilege scopes.
+    Scopes are `{resource}:read` or `{resource}:write` for
+    frontends, backends, acls, certs, users, apikeys, audit, stats, settings.
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: goproxy_session
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    Frontend:
+      type: object
+      properties:
+        id: { type: string, description: Optional on create. Generated from bind and TLS, for example https-443. }
+        name: { type: string, description: Optional display name. }
+        bind: { type: string }
+        default:
+          type: object
+          description: Used when no route matches the host.
+          properties:
+            backend: { type: string }
+            redirect_url: { type: string }
+            redirect_keep_path: { type: boolean }
+        tls:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            min_version: { type: string }
+            hsts: { type: boolean }
+    ACL:
+      type: object
+      properties:
+        id: { type: string, description: Optional on create. Generated from the host. }
+        name: { type: string, description: Optional display name. }
+        frontend: { type: string }
+        match:
+          type: object
+          properties:
+            host: { type: string }
+        mode: { type: string, enum: [terminate, passthrough] }
+        backend: { type: string, description: Optional when redirect_url is set. }
+        certificate: { type: string }
+        middleware:
+          type: object
+          properties:
+            https_redirect: { type: boolean }
+            redirect_url: { type: string }
+            redirect_keep_path: { type: boolean }
+            redirect_code: { type: integer }
+            ip_allow:
+              type: array
+              items: { type: string }
+            ip_deny:
+              type: array
+              items: { type: string }
+            basic_auth:
+              type: object
+              properties:
+                realm: { type: string }
+                paths:
+                  type: array
+                  items: { type: string }
+                users:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      username: { type: string }
+                      password: { type: string }
+    Backend:
+      type: object
+      properties:
+        id: { type: string, description: Optional on create. Generated from the first server host. }
+        name: { type: string, description: Optional display name. }
+        algorithm: { type: string, enum: [round_robin, least_conn, weighted, ip_hash] }
+        servers:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string }
+              address: { type: string }
+              role: { type: string, enum: [primary, backup] }
+              weight: { type: integer }
+    Certificate:
+      type: object
+      properties:
+        id: { type: string, description: Optional on create. Generated from the first domain. }
+        name: { type: string, description: Optional display name. }
+        domains:
+          type: array
+          items: { type: string }
+        challenge: { type: string, enum: [http-01, dns-01, custom] }
+        dns_provider: { type: string }
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        role: { type: string, enum: [admin, operator, viewer] }
+    APIKey:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        prefix: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      security: []
+      summary: Liveness
+      responses:
+        '200': { description: ok }
+  /auth/status:
+    get:
+      security: []
+      summary: Auth status
+      responses:
+        '200': { description: status }
+  /auth/login:
+    post:
+      security: []
+      summary: Login
+      responses:
+        '200': { description: ok }
+  /auth/logout:
+    post:
+      summary: Logout
+      responses:
+        '204': { description: ok }
+  /auth/me:
+    get:
+      summary: Current user
+      responses:
+        '200': { description: actor }
+  /frontends:
+    get:
+      summary: List frontends
+      responses:
+        '200': { description: list }
+    post:
+      summary: Create frontend
+      responses:
+        '201': { description: created }
+  /frontends/{id}:
+    put:
+      summary: Update frontend
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: updated }
+    delete:
+      summary: Delete frontend
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: deleted }
+  /acls:
+    get:
+      summary: List ACLs
+      responses:
+        '200': { description: list }
+    post:
+      summary: Create ACL
+      responses:
+        '201': { description: created }
+  /acls/{id}:
+    put:
+      summary: Update ACL
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: updated }
+    delete:
+      summary: Delete ACL
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: deleted }
+  /backends:
+    get:
+      summary: List backends
+      responses:
+        '200': { description: list }
+    post:
+      summary: Create backend
+      responses:
+        '201': { description: created }
+  /backends/{id}:
+    put:
+      summary: Update backend
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: updated }
+    delete:
+      summary: Delete backend
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: deleted }
+  /dns-providers:
+    get:
+      summary: List DNS-01 providers and credential fields
+      responses:
+        '200': { description: list }
+  /certificates:
+    get:
+      summary: List certificates
+      responses:
+        '200': { description: list }
+    post:
+      summary: Create certificate
+      responses:
+        '201': { description: created }
+  /certificates/{id}:
+    put:
+      summary: Update certificate
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: updated }
+    delete:
+      summary: Delete certificate
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: deleted }
+  /certificates/{id}/upload:
+    post:
+      summary: Upload custom PEM cert and key
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: uploaded }
+  /certificates/{id}/renew:
+    post:
+      summary: Renew certificate
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: renewed }
+  /users:
+    get:
+      summary: List users
+      responses:
+        '200': { description: list }
+    post:
+      summary: Create user
+      responses:
+        '201': { description: created }
+  /users/{id}:
+    put:
+      summary: Update user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: updated }
+    delete:
+      summary: Delete user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: deleted }
+  /apikeys:
+    get:
+      summary: List API keys
+      responses:
+        '200': { description: list }
+    post:
+      summary: Create API key
+      responses:
+        '201': { description: created }
+  /apikeys/{id}:
+    delete:
+      summary: Delete API key
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: deleted }
+  /audit:
+    get:
+      summary: Audit log
+      responses:
+        '200': { description: list }
+  /stats:
+    get:
+      summary: Live stats
+      description: >
+        Window counters plus lifetime totals since process start.
+        Includes `latency_ms` (window average), `uptime_seconds`, and `started_at`.
+        `frontends`, `routes`, `backends`, and `servers` map ids to
+        `{requests, bytes_in, bytes_out, latency_ms}`.
+      responses:
+        '200': { description: snapshot }
+  /stats/history:
+    get:
+      summary: Ring buffer history (resets on restart)
+      responses:
+        '200': { description: snapshots }
+  /config:
+    get:
+      summary: Full proxy config
+      responses:
+        '200': { description: yaml as json }
+    put:
+      summary: Replace proxy config
+      responses:
+        '200': { description: applied }
+  /config/validate:
+    post:
+      summary: Dry-run validate
+      responses:
+        '200': { description: ok }
+  /config/sync:
+    post:
+      summary: Pull Git and apply
+      responses:
+        '200': { description: applied }
+  /backup:
+    post:
+      summary: Run state.db snapshot now
+      responses:
+        '200': { description: ok }
+  /settings:
+    get:
+      summary: App settings (sanitized)
+      responses:
+        '200': { description: settings }
