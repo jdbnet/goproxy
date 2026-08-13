@@ -65,7 +65,7 @@ onUnmounted(() => clearInterval(timer))
       <div class="card">
         <div class="text-xs text-muted">Latency</div>
         <div class="mt-1 text-2xl font-semibold">{{ formatLatency(live.latency_ms) }}</div>
-        <p class="mt-1 text-xs text-muted">Window average</p>
+        <p class="mt-1 text-xs text-muted">Time to first byte</p>
         <Sparkline class="mt-2" :points="history" field="latency_ms" />
       </div>
       <div class="card">
@@ -111,7 +111,7 @@ onUnmounted(() => clearInterval(timer))
             </td>
             <td
               class="whitespace-nowrap"
-              :title="s.probe_ms ? `Health probe ${formatLatency(s.probe_ms)}` : (s.latency_ms ? 'From proxied requests' : 'No samples yet')"
+              :title="s.probe_ms ? 'Health probe' : 'No health check'"
             >{{ formatLatency(s.latency_ms) }}</td>
             <td :title="trafficTitle(s)">{{ trafficLabel(s) }}</td>
             <td>{{ s.conns }}</td>

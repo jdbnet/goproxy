@@ -409,7 +409,7 @@ func (e *Engine) reverseProxy(acl *proxyconfig.ACL) http.Handler {
 		start := time.Now()
 		body := &countingBody{ReadCloser: r.Body}
 		r.Body = body
-		rec := &statusRecorder{ResponseWriter: w, status: 200}
+		rec := &statusRecorder{ResponseWriter: w, start: start, status: 200}
 		proxy := &httputil.ReverseProxy{
 			Transport: e.transport,
 			Rewrite: func(pr *httputil.ProxyRequest) {
@@ -426,10 +426,15 @@ func (e *Engine) reverseProxy(acl *proxyconfig.ACL) http.Handler {
 			FlushInterval: 100 * time.Millisecond,
 		}
 		proxy.ServeHTTP(rec, r)
-		e.metrics.ObserveRequest(time.Since(start), rec.status, body.n, rec.bytes, acl.Frontend, acl.ID, acl.Backend, srv.Target())
+		lat := rec.ttfb
+		if lat == 0 {
+			lat = time.Since(start)
+		}
+		e.metrics.ObserveRequest(lat, rec.status, body.n, rec.bytes, acl.Frontend, acl.ID, acl.Backend, srv.Target())
 		e.logAccess(map[string]any{
 			"type": "access", "mode": "terminate", "acl": acl.ID, "host": r.Host,
 			"path": r.URL.Path, "status": rec.status, "backend": srv.Target(),
+			"latency_ms":  lat.Milliseconds(),
 			"duration_ms": time.Since(start).Milliseconds(),
 		})
 		if rec.status >= 500 {
@@ -510,22 +515,33 @@ func (c *countingBody) Read(p []byte) (int, error) {
 
 type statusRecorder struct {
 	http.ResponseWriter
+	start  time.Time
+	ttfb   time.Duration
 	status int
 	bytes  int64
 }
 
+func (s *statusRecorder) noteTTFB() {
+	if s.ttfb == 0 {
+		s.ttfb = time.Since(s.start)
+	}
+}
+
 func (s *statusRecorder) WriteHeader(code int) {
+	s.noteTTFB()
 	s.status = code
 	s.ResponseWriter.WriteHeader(code)
 }
 
 func (s *statusRecorder) Write(p []byte) (int, error) {
+	s.noteTTFB()
 	n, err := s.ResponseWriter.Write(p)
 	s.bytes += int64(n)
 	return n, err
 }
 
 func (s *statusRecorder) Flush() {
+	s.noteTTFB()
 	if f, ok := s.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
@@ -536,6 +552,7 @@ func (s *statusRecorder) Unwrap() http.ResponseWriter {
 }
 
 func (s *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	s.noteTTFB()
 	h, ok := s.ResponseWriter.(http.Hijacker)
 	if !ok {
 		return nil, nil, errors.New("hijack not supported")
@@ -571,10 +588,6 @@ func (e *Engine) BackendStatus() []ServerStatus {
 		for _, s := range p.Servers {
 			st := e.metrics.ServerStats(p.ID, s.Target())
 			probeMs := float64(s.ProbeLatency()) / float64(time.Millisecond)
-			lat := st.LatencyMs
-			if lat == 0 {
-				lat = probeMs
-			}
 			out = append(out, ServerStatus{
 				Backend:   p.ID,
 				Name:      names[p.ID],
@@ -585,7 +598,7 @@ func (e *Engine) BackendStatus() []ServerStatus {
 				Requests:  st.Requests,
 				BytesIn:   st.BytesIn,
 				BytesOut:  st.BytesOut,
-				LatencyMs: lat,
+				LatencyMs: probeMs,
 				ProbeMs:   probeMs,
 			})
 		}
