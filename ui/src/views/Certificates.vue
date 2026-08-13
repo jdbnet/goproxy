@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { LoaderCircle, Pencil, RefreshCw, Trash2, X } from '@lucide/vue'
+import { FileUp, LoaderCircle, Pencil, RefreshCw, Trash2, X } from '@lucide/vue'
 import { certID } from '@/lib/ids'
 import api from '@/api/client'
 
@@ -28,6 +28,8 @@ const emptyForm = () => ({
 })
 
 const form = ref(emptyForm())
+const certFileName = ref('')
+const keyFileName = ref('')
 
 const selectedProvider = computed(() => providers.value.find((p) => p.id === form.value.dns_provider))
 
@@ -43,6 +45,8 @@ async function load() {
 function reset() {
   editing.value = false
   form.value = emptyForm()
+  certFileName.value = ''
+  keyFileName.value = ''
 }
 
 function edit(c) {
@@ -57,6 +61,8 @@ function edit(c) {
     cert_pem: '',
     key_pem: '',
   }
+  certFileName.value = ''
+  keyFileName.value = ''
 }
 
 watch(() => form.value.dns_provider, () => {
@@ -68,6 +74,8 @@ watch(() => form.value.dns_provider, () => {
 function readFile(ev, field) {
   const file = ev.target.files?.[0]
   if (!file) return
+  if (field === 'cert_pem') certFileName.value = file.name
+  if (field === 'key_pem') keyFileName.value = file.name
   const reader = new FileReader()
   reader.onload = () => {
     form.value[field] = String(reader.result || '')
@@ -259,12 +267,20 @@ function expiryClass(daysLeft) {
       <div v-if="form.challenge === 'custom'" class="grid gap-3 md:grid-cols-2">
         <div>
           <label class="mb-1 block text-sm text-muted">Certificate PEM</label>
-          <input type="file" accept=".pem,.crt,.cer,.txt" class="mb-2 block text-sm" @change="readFile($event, 'cert_pem')" />
+          <label class="btn-secondary mb-2 w-full cursor-pointer">
+            <input type="file" accept=".pem,.crt,.cer,.txt" class="sr-only" @change="readFile($event, 'cert_pem')" />
+            <FileUp class="h-4 w-4 shrink-0" />
+            <span class="truncate">{{ certFileName || 'Choose file' }}</span>
+          </label>
           <textarea v-model="form.cert_pem" class="input-field min-h-32 font-mono text-xs" placeholder="-----BEGIN CERTIFICATE-----" :required="!editing" />
         </div>
         <div>
           <label class="mb-1 block text-sm text-muted">Private key PEM</label>
-          <input type="file" accept=".pem,.key,.txt" class="mb-2 block text-sm" @change="readFile($event, 'key_pem')" />
+          <label class="btn-secondary mb-2 w-full cursor-pointer">
+            <input type="file" accept=".pem,.key,.txt" class="sr-only" @change="readFile($event, 'key_pem')" />
+            <FileUp class="h-4 w-4 shrink-0" />
+            <span class="truncate">{{ keyFileName || 'Choose file' }}</span>
+          </label>
           <textarea v-model="form.key_pem" class="input-field min-h-32 font-mono text-xs" placeholder="-----BEGIN PRIVATE KEY-----" :required="!editing" />
         </div>
       </div>

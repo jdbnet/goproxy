@@ -49,17 +49,29 @@
     background-color: var(--color-canvas-subtle);
     color: #1f2328;
   }
+  .btn-secondary:hover {
+    background-color: var(--color-canvas-inset);
+  }
   html.dark .btn-secondary {
     border-color: var(--color-border-muted-dark);
     background-color: var(--color-canvas-subtle-dark);
     color: #e6edf3;
+  }
+  html.dark .btn-secondary:hover {
+    background-color: var(--color-canvas-inset-dark);
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-sm transition;
     border-color: var(--color-border-default);
     color: #57606a;
   }
+  .btn-ghost:hover {
+    background-color: var(--color-canvas-inset);
+  }
   html.dark .btn-ghost { border-color: var(--color-border-muted-dark); color: #8b949e; }
+  html.dark .btn-ghost:hover {
+    background-color: var(--color-canvas-inset-dark);
+  }
   .btn-row {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition disabled:opacity-50;
   }
