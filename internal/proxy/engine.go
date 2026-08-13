@@ -294,7 +294,7 @@ func (e *Engine) passthrough(acl *proxyconfig.ACL, client net.Conn) {
 	dial := time.Since(start)
 	if err != nil {
 		health.MarkPassiveFailure(srv)
-		e.metrics.ObserveRequest(dial, 502, 0, 0, acl.Frontend, acl.ID, acl.Backend, srv.Target())
+		e.metrics.ObserveRequest(dial, 502, 0, 0, e.requestScope(acl, srv))
 		return
 	}
 	defer up.Close()
@@ -314,7 +314,7 @@ func (e *Engine) passthrough(acl *proxyconfig.ACL, client net.Conn) {
 	_ = client.Close()
 	_ = up.Close()
 	<-errc
-	e.metrics.ObserveRequest(dial, 200, inB.Load(), outB.Load(), acl.Frontend, acl.ID, acl.Backend, srv.Target())
+	e.metrics.ObserveRequest(dial, 200, inB.Load(), outB.Load(), e.requestScope(acl, srv))
 	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 		slog.Debug("request",
 			"type", "access", "mode", "passthrough", "acl", acl.ID, "sni", acl.Match.Host,
@@ -427,7 +427,7 @@ func (e *Engine) reverseProxy(acl *proxyconfig.ACL) http.Handler {
 		if lat == 0 {
 			lat = time.Since(start)
 		}
-		e.metrics.ObserveRequest(lat, rec.status, body.n, rec.bytes, acl.Frontend, acl.ID, acl.Backend, srv.Target())
+		e.metrics.ObserveRequest(lat, rec.status, body.n, rec.bytes, e.requestScope(acl, srv))
 		if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 			slog.Debug("request",
 				"type", "access", "mode", "terminate", "acl", acl.ID, "host", r.Host,
@@ -610,6 +610,36 @@ func (e *Engine) BackendStatus() []ServerStatus {
 	return out
 }
 
+func (e *Engine) requestScope(acl *proxyconfig.ACL, srv *lb.Server) metrics.RequestScope {
+	sc := metrics.RequestScope{
+		Frontend:  acl.Frontend,
+		Route:     acl.ID,
+		RouteName: acl.Name,
+		Backend:   acl.Backend,
+	}
+	if srv != nil {
+		sc.Server = srv.Target()
+	}
+	if sc.RouteName == "" {
+		sc.RouteName = acl.Match.Host
+	}
+	if cfg := e.Config(); cfg != nil {
+		for _, fe := range cfg.Frontends {
+			if fe.ID == acl.Frontend {
+				sc.FrontendName = fe.Name
+				break
+			}
+		}
+		for _, be := range cfg.Backends {
+			if be.ID == acl.Backend {
+				sc.BackendName = be.Name
+				break
+			}
+		}
+	}
+	return sc
+}
+
 func (e *Engine) RefreshMetrics() {
 	var healthy, total float64
 	for _, p := range e.pools.All() {
@@ -619,7 +649,7 @@ func (e *Engine) RefreshMetrics() {
 			if up {
 				healthy++
 			}
-			e.metrics.SetBackend(p.ID, s.Target(), up)
+			e.metrics.SetBackend(p.ID, p.Name, s.Target(), up)
 		}
 	}
 	e.metrics.SetBackendCounts(healthy, total)

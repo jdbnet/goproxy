@@ -43,6 +43,7 @@ func (s *Server) ProbeLatency() time.Duration {
 
 type Pool struct {
 	ID        string
+	Name      string
 	Algorithm string
 	Servers   []*Server
 	mu        sync.Mutex
@@ -61,7 +62,7 @@ func NewRegistry() *Registry {
 func (r *Registry) Replace(cfg *proxyconfig.Config) {
 	next := map[string]*Pool{}
 	for _, be := range cfg.Backends {
-		p := &Pool{ID: be.ID, Algorithm: be.Algorithm}
+		p := &Pool{ID: be.ID, Name: be.Name, Algorithm: be.Algorithm}
 		for i, s := range be.Servers {
 			srv := &Server{
 				ID:      be.ID + "/" + itoa(i),

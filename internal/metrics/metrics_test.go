@@ -7,8 +7,9 @@ import (
 
 func TestObserveRequestTotals(t *testing.T) {
 	m := New()
-	m.ObserveRequest(10*time.Millisecond, 200, 100, 400, "https-443", "app", "pool", "10.0.0.1:80")
-	m.ObserveRequest(30*time.Millisecond, 200, 50, 50, "https-443", "app", "pool", "10.0.0.1:80")
+	sc := RequestScope{Frontend: "https-443", Route: "app", Backend: "pool", Server: "10.0.0.1:80", BackendName: "App"}
+	m.ObserveRequest(10*time.Millisecond, 200, 100, 400, sc)
+	m.ObserveRequest(30*time.Millisecond, 200, 50, 50, sc)
 	live := m.Live()
 	if live.RequestsTotal != 2 || live.BytesInTotal != 150 || live.BytesOutTotal != 450 {
 		t.Fatalf("totals %+v", live)

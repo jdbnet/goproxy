@@ -15,6 +15,16 @@ type ScopeStats struct {
 	LatencyMs float64 `json:"latency_ms,omitempty"`
 }
 
+type RequestScope struct {
+	Frontend     string
+	FrontendName string
+	Route        string
+	RouteName    string
+	Backend      string
+	BackendName  string
+	Server       string
+}
+
 type Snapshot struct {
 	At              time.Time             `json:"at"`
 	StartedAt       time.Time             `json:"started_at,omitempty"`
@@ -92,7 +102,7 @@ func New() *Metrics {
 		promBackend = promauto.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "goproxy_backend_up",
 			Help: "Backend server health (1=up)",
-		}, []string{"backend", "server"})
+		}, []string{"backend", "name", "server"})
 		promCert = promauto.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "goproxy_cert_expiry_seconds",
 			Help: "Seconds until certificate expiry",
@@ -100,11 +110,11 @@ func New() *Metrics {
 		promScopeReq = promauto.NewCounterVec(prometheus.CounterOpts{
 			Name: "goproxy_scope_requests_total",
 			Help: "Requests by frontend, route, or backend",
-		}, []string{"kind", "id"})
+		}, []string{"kind", "id", "name"})
 		promScopeByte = promauto.NewCounterVec(prometheus.CounterOpts{
 			Name: "goproxy_scope_bytes_total",
 			Help: "Bytes by frontend, route, or backend",
-		}, []string{"kind", "id", "dir"})
+		}, []string{"kind", "id", "name", "dir"})
 		promServerLat = promauto.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "goproxy_backend_latency_seconds",
 			Help: "EWMA request latency to a backend server",
@@ -129,7 +139,7 @@ func New() *Metrics {
 	}
 }
 
-func (m *Metrics) ObserveRequest(d time.Duration, status int, in, out int64, frontend, route, backend, server string) {
+func (m *Metrics) ObserveRequest(d time.Duration, status int, in, out int64, sc RequestScope) {
 	if in < 0 {
 		in = 0
 	}
@@ -144,9 +154,9 @@ func (m *Metrics) ObserveRequest(d time.Duration, status int, in, out int64, fro
 	if status >= 500 {
 		m.Errors.Inc()
 	}
-	addPromScope("frontend", frontend, in, out)
-	addPromScope("route", route, in, out)
-	addPromScope("backend", backend, in, out)
+	addPromScope("frontend", sc.Frontend, sc.FrontendName, in, out)
+	addPromScope("route", sc.Route, sc.RouteName, in, out)
+	addPromScope("backend", sc.Backend, sc.BackendName, in, out)
 	m.mu.Lock()
 	m.last.Requests++
 	m.last.BytesIn += float64(in)
@@ -159,26 +169,29 @@ func (m *Metrics) ObserveRequest(d time.Duration, status int, in, out int64, fro
 	m.totals.Requests++
 	m.totals.BytesIn += in
 	m.totals.BytesOut += out
-	m.byFrontend = bumpScope(m.byFrontend, frontend, in, out, ms)
-	m.byRoute = bumpScope(m.byRoute, route, in, out, ms)
-	m.byBackend = bumpScope(m.byBackend, backend, in, out, ms)
-	if backend != "" && server != "" {
-		key := serverKey(backend, server)
+	m.byFrontend = bumpScope(m.byFrontend, sc.Frontend, in, out, ms)
+	m.byRoute = bumpScope(m.byRoute, sc.Route, in, out, ms)
+	m.byBackend = bumpScope(m.byBackend, sc.Backend, in, out, ms)
+	if sc.Backend != "" && sc.Server != "" {
+		key := serverKey(sc.Backend, sc.Server)
 		m.byServer = bumpScope(m.byServer, key, in, out, ms)
 		if promServerLat != nil {
-			promServerLat.WithLabelValues(backend, server).Set(m.byServer[key].LatencyMs / 1000)
+			promServerLat.WithLabelValues(sc.Backend, sc.Server).Set(m.byServer[key].LatencyMs / 1000)
 		}
 	}
 	m.mu.Unlock()
 }
 
-func addPromScope(kind, id string, in, out int64) {
+func addPromScope(kind, id, name string, in, out int64) {
 	if id == "" || promScopeReq == nil {
 		return
 	}
-	promScopeReq.WithLabelValues(kind, id).Inc()
-	promScopeByte.WithLabelValues(kind, id, "in").Add(float64(in))
-	promScopeByte.WithLabelValues(kind, id, "out").Add(float64(out))
+	if name == "" {
+		name = id
+	}
+	promScopeReq.WithLabelValues(kind, id, name).Inc()
+	promScopeByte.WithLabelValues(kind, id, name, "in").Add(float64(in))
+	promScopeByte.WithLabelValues(kind, id, name, "out").Add(float64(out))
 }
 
 func bumpScope(store map[string]ScopeStats, id string, in, out int64, ms float64) map[string]ScopeStats {
@@ -225,12 +238,15 @@ func (m *Metrics) SetConns(n int) {
 	m.mu.Unlock()
 }
 
-func (m *Metrics) SetBackend(backend, server string, up bool) {
+func (m *Metrics) SetBackend(backend, name, server string, up bool) {
 	v := 0.0
 	if up {
 		v = 1
 	}
-	m.BackendUp.WithLabelValues(backend, server).Set(v)
+	if name == "" {
+		name = backend
+	}
+	m.BackendUp.WithLabelValues(backend, name, server).Set(v)
 }
 
 func (m *Metrics) SetCertExpiry(id string, seconds float64) {
