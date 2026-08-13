@@ -29,6 +29,12 @@ const nav = [
 
 const pageTitle = computed(() => nav.find((n) => n.match(route.path))?.label || 'GoProxy')
 
+const versionLabel = computed(() => {
+  const v = (auth.version || 'dev').trim()
+  if (v === 'dev' || v.startsWith('v')) return v
+  return `v${v}`
+})
+
 async function logout() {
   await auth.logout()
   window.location.href = '/login'
@@ -46,7 +52,7 @@ async function logout() {
         <img src="/favicon.png" alt="" class="h-9 w-9 shrink-0 rounded-lg" width="36" height="36" />
         <div class="min-w-0 flex-1">
           <div class="truncate text-sm font-semibold text-heading">GoProxy</div>
-          <div class="text-xs text-muted">Load balancer</div>
+          <div class="text-xs text-muted">{{ versionLabel }}</div>
         </div>
         <button type="button" class="text-muted lg:hidden" @click="sidebarOpen = false"><X class="h-5 w-5" /></button>
       </div>

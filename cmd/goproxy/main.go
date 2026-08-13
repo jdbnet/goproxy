@@ -156,7 +156,7 @@ func main() {
 		}
 	}()
 
-	srvAPI := api.New(app, authSvc, al, cfgSvc, eng, certs, m, bak, git, n, hasUsers)
+	srvAPI := api.New(app, authSvc, al, cfgSvc, eng, certs, m, bak, git, n, hasUsers, Version)
 	httpSrv := &http.Server{
 		Addr:              app.Listen,
 		Handler:           srvAPI.Handler(),

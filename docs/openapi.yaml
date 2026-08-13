@@ -67,6 +67,7 @@ components:
       type: object
       properties:
         status: { type: string, example: ok }
+        version: { type: string, example: 1.0.0 }
     LoginRequest:
       type: object
       required: [username, password]
@@ -89,6 +90,7 @@ components:
       properties:
         auth_required: { type: boolean, example: true }
         authenticated: { type: boolean, example: false }
+        version: { type: string, example: 1.0.0 }
     Actor:
       type: object
       properties:
@@ -526,6 +528,7 @@ components:
     Settings:
       type: object
       properties:
+        version: { type: string, example: 1.0.0 }
         listen: { type: string, example: 127.0.0.1:8080 }
         log_level: { type: string, example: info }
         data_dir: { type: string, example: /var/lib/goproxy }

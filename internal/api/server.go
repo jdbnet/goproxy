@@ -34,12 +34,13 @@ type Server struct {
 	git      *gitsync.Sync
 	notify   *notify.Notifier
 	hasUsers bool
+	version  string
 }
 
-func New(app *config.Config, authSvc *auth.Service, al *audit.Log, cfg *ConfigService, engine *proxy.Engine, certs *tlsx.Store, m *metrics.Metrics, b *backup.Manager, git *gitsync.Sync, n *notify.Notifier, hasUsers bool) *Server {
+func New(app *config.Config, authSvc *auth.Service, al *audit.Log, cfg *ConfigService, engine *proxy.Engine, certs *tlsx.Store, m *metrics.Metrics, b *backup.Manager, git *gitsync.Sync, n *notify.Notifier, hasUsers bool, version string) *Server {
 	return &Server{
 		app: app, auth: authSvc, audit: al, cfg: cfg, engine: engine, certs: certs,
-		metrics: m, backup: b, git: git, notify: n, hasUsers: hasUsers,
+		metrics: m, backup: b, git: git, notify: n, hasUsers: hasUsers, version: version,
 	}
 }
 
@@ -124,7 +125,7 @@ func authAll() []string {
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": s.version})
 }
 
 func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +138,7 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"auth_required": s.hasUsers,
 		"authenticated": authenticated,
+		"version":       s.version,
 	})
 }
 

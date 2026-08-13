@@ -7,12 +7,14 @@ export const useAuthStore = defineStore('auth', {
     authenticated: false,
     checked: false,
     me: null,
+    version: '',
   }),
   actions: {
     async check() {
       const { data } = await api.get('/auth/status')
       this.authRequired = data.auth_required
       this.authenticated = data.authenticated
+      this.version = data.version || ''
       this.checked = true
       if (this.authenticated) {
         try {
