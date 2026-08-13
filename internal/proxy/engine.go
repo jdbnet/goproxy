@@ -380,6 +380,10 @@ func (e *Engine) serveFrontendDefault(f *frontend, w http.ResponseWriter, r *htt
 		mw.SetHSTS(w)
 	}
 	d := fe.Default
+	if d.HTTPSRedirect {
+		http.Redirect(w, r, mw.HTTPSRedirectURL(r), http.StatusMovedPermanently)
+		return
+	}
 	if d.RedirectURL != "" {
 		http.Redirect(w, r, mw.JoinRedirect(d.RedirectURL, r, d.KeepPath()), http.StatusMovedPermanently)
 		return

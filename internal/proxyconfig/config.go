@@ -31,10 +31,11 @@ type FrontendDefault struct {
 	Backend          string `yaml:"backend,omitempty" json:"backend,omitempty"`
 	RedirectURL      string `yaml:"redirect_url,omitempty" json:"redirect_url,omitempty"`
 	RedirectKeepPath *bool  `yaml:"redirect_keep_path,omitempty" json:"redirect_keep_path,omitempty"`
+	HTTPSRedirect    bool   `yaml:"https_redirect,omitempty" json:"https_redirect,omitempty"`
 }
 
 func (f *Frontend) HasDefault() bool {
-	return f != nil && f.Default != nil && (f.Default.RedirectURL != "" || f.Default.Backend != "")
+	return f != nil && f.Default != nil && (f.Default.RedirectURL != "" || f.Default.Backend != "" || f.Default.HTTPSRedirect)
 }
 
 func (d *FrontendDefault) KeepPath() bool {

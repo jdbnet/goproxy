@@ -29,7 +29,8 @@ import { RouterLink } from 'vue-router'
         <li>
           <RouterLink to="/frontends" class="text-accent">Frontends</RouterLink>
           are listeners (IP + port). Enable HTTPS on :443. IDs are generated for you.
-          Set a default redirect or backend for hosts that do not match a route.
+          Set a default redirect, backend, or Force HTTPS for hosts that do not match a route.
+          A :80 listener with Force HTTPS as the default covers every hostname. Keep the real routes on :443.
         </li>
         <li>
           <RouterLink to="/routes" class="text-accent">Routes</RouterLink>

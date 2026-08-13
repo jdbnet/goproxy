@@ -47,12 +47,14 @@ function backendByID(id) {
 }
 
 function inferFallback(fe) {
+  if (fe.default?.https_redirect) return 'https'
   if (fe.default?.redirect_url) return 'redirect'
   if (fe.default?.backend) return 'forward'
   return 'none'
 }
 
 function defaultLabel(fe) {
+  if (fe.default?.https_redirect) return 'Force HTTPS'
   if (fe.default?.redirect_url) return `Redirect to ${fe.default.redirect_url}`
   if (fe.default?.backend) {
     const be = backendByID(fe.default.backend)
@@ -87,7 +89,9 @@ async function save() {
     if (form.value.tls.enabled) {
       body.tls = { enabled: true, min_version: form.value.tls.min_version || '1.2', hsts: form.value.tls.hsts }
     }
-    if (form.value.fallback === 'redirect') {
+    if (form.value.fallback === 'https') {
+      body.default = { https_redirect: true }
+    } else if (form.value.fallback === 'redirect') {
       body.default = {
         redirect_url: form.value.redirect_url.trim(),
         redirect_keep_path: form.value.redirect_keep_path,
@@ -137,6 +141,7 @@ onMounted(load)
       <h1 class="text-xl font-semibold">Frontends</h1>
       <p class="mt-1 text-sm text-muted">
         Listeners that accept traffic. A default is used when no route matches the host.
+        Put Force HTTPS on :80 and leave routes on :443 so you do not need two routes per site.
       </p>
     </div>
     <p v-if="error" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">{{ error }}</p>
@@ -162,11 +167,16 @@ onMounted(load)
 
       <div>
         <label class="mb-2 block text-sm text-muted">When nothing matches</label>
-        <div class="grid gap-2 md:grid-cols-3">
+        <div class="grid gap-2 md:grid-cols-2">
           <label class="card cursor-pointer !p-3" :class="form.fallback === 'none' ? 'ring-1 ring-accent' : ''">
             <input v-model="form.fallback" type="radio" value="none" class="mr-2" />
             <span class="font-medium">None</span>
             <p class="mt-1 text-xs text-muted">Unknown hosts get 404 or the connection is closed.</p>
+          </label>
+          <label class="card cursor-pointer !p-3" :class="form.fallback === 'https' ? 'ring-1 ring-accent' : ''">
+            <input v-model="form.fallback" type="radio" value="https" class="mr-2" />
+            <span class="font-medium">Force HTTPS</span>
+            <p class="mt-1 text-xs text-muted">301 to https:// with the same host and path. Use this on :80.</p>
           </label>
           <label class="card cursor-pointer !p-3" :class="form.fallback === 'redirect' ? 'ring-1 ring-accent' : ''">
             <input v-model="form.fallback" type="radio" value="redirect" class="mr-2" />

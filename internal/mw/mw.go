@@ -32,10 +32,7 @@ func Apply(next http.Handler, acl *proxyconfig.ACL, frontendTLS bool) http.Handl
 func withRedirects(next http.Handler, m *proxyconfig.Middleware, frontendTLS bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if m.HTTPSRedirect && !frontendTLS && r.TLS == nil {
-			u := *r.URL
-			u.Scheme = "https"
-			u.Host = r.Host
-			http.Redirect(w, r, u.String(), http.StatusMovedPermanently)
+			http.Redirect(w, r, HTTPSRedirectURL(r), http.StatusMovedPermanently)
 			return
 		}
 		if loc, ok := redirectLocation(m, r); ok {
@@ -65,6 +62,17 @@ func redirectLocation(m *proxyconfig.Middleware, r *http.Request) (string, bool)
 		return u.String(), true
 	}
 	return "", false
+}
+
+func HTTPSRedirectURL(r *http.Request) string {
+	host := r.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	u := *r.URL
+	u.Scheme = "https"
+	u.Host = host
+	return u.String()
 }
 
 func JoinRedirect(base string, r *http.Request, keepPath bool) string {

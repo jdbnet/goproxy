@@ -10,6 +10,15 @@ import (
 	"git.jdbnet.co.uk/jamie/goproxy/internal/proxyconfig"
 )
 
+func TestHTTPSRedirectURLStripsPort(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.com:80/foo?x=1", nil)
+	req.Host = "app.example.com:80"
+	got := HTTPSRedirectURL(req)
+	if got != "https://app.example.com/foo?x=1" {
+		t.Fatalf("got %s", got)
+	}
+}
+
 func TestPathRewrite(t *testing.T) {
 	acl := &proxyconfig.ACL{Middleware: &proxyconfig.Middleware{PathRewrite: &proxyconfig.PathRewrite{From: "/old", To: "/new"}}}
 	h := Apply(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

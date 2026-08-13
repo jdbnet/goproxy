@@ -37,6 +37,7 @@ components:
             backend: { type: string }
             redirect_url: { type: string }
             redirect_keep_path: { type: boolean }
+            https_redirect: { type: boolean, description: 301 to https:// same host and path. }
         tls:
           type: object
           properties:

@@ -33,9 +33,9 @@ func TestRedirectOnlyACL(t *testing.T) {
 	cfg := &Config{
 		Frontends: []Frontend{{ID: "https", Bind: "0.0.0.0:443", TLS: &FrontendTLS{Enabled: true}}},
 		ACLs: []ACL{{
-			Frontend: "https",
-			Match:    Match{Host: "apps.s3.jdbnet.co.uk"},
-			Mode:     "terminate",
+			Frontend:   "https",
+			Match:      Match{Host: "apps.s3.jdbnet.co.uk"},
+			Mode:       "terminate",
 			Middleware: &Middleware{RedirectURL: "https://apps.jdbnet.co.uk"},
 		}},
 	}
@@ -57,14 +57,26 @@ func TestACLNeedsBackendOrRedirect(t *testing.T) {
 func TestFrontendDefaultRedirect(t *testing.T) {
 	cfg := &Config{
 		Frontends: []Frontend{{
-			ID:   "https",
-			Bind: "0.0.0.0:443",
-			TLS:  &FrontendTLS{Enabled: true},
+			ID:      "https",
+			Bind:    "0.0.0.0:443",
+			TLS:     &FrontendTLS{Enabled: true},
 			Default: &FrontendDefault{RedirectURL: "https://www.jdbnet.co.uk"},
 		}},
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestFrontendDefaultHTTPSRedirect(t *testing.T) {
+	cfg := &Config{
+		Frontends: []Frontend{{ID: "http", Bind: "0.0.0.0:80", Default: &FrontendDefault{HTTPSRedirect: true}}},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Frontends[0].HasDefault() {
+		t.Fatal("https redirect should count as a default")
 	}
 }
 
