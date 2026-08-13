@@ -13,6 +13,7 @@ const certs = ref([])
 const stats = ref({})
 const form = ref(emptyForm())
 const editing = ref(false)
+const advanced = ref(false)
 const error = ref('')
 
 function emptyForm() {
@@ -202,6 +203,19 @@ function extras(a) {
   return out
 }
 
+function hasAdvancedFields(a) {
+  if (inferAction(a) !== 'forward') return true
+  return extras(a).length > 0
+}
+
+function setAdvanced(on) {
+  if (!on && form.value.action !== 'forward') {
+    advanced.value = true
+    return
+  }
+  advanced.value = on
+}
+
 async function load() {
   const [acls, fes, bes, cs, st] = await Promise.all([
     api.get('/acls'),
@@ -268,6 +282,7 @@ async function remove(id) {
 
 function edit(a) {
   editing.value = true
+  advanced.value = hasAdvancedFields(a)
   const m = a.middleware || {}
   form.value = {
     id: a.id,
@@ -295,6 +310,7 @@ function edit(a) {
 
 function reset() {
   editing.value = false
+  advanced.value = false
   form.value = {
     ...emptyForm(),
     frontend: firstPick(frontends.value),
@@ -318,11 +334,33 @@ onMounted(load)
     <div>
       <h1 class="text-xl font-semibold">Routes</h1>
       <p class="mt-1 text-sm text-muted">
-        Pick what this domain should do, then fill in only the fields that apply.
+        Point a domain at a backend, pick the listener and a certificate. That covers most sites.
+        Open Advanced for redirects, IP locks, passwords, and headers.
       </p>
     </div>
     <p v-if="error" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">{{ error }}</p>
     <form class="card space-y-4" @submit.prevent="save">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="inline-flex rounded-lg border border-default p-0.5">
+          <button
+            type="button"
+            class="rounded-md px-3 py-1.5 text-sm"
+            :class="!advanced ? 'bg-accent text-neutral-950' : 'text-muted'"
+            @click="setAdvanced(false)"
+          >
+            Simple
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-3 py-1.5 text-sm"
+            :class="advanced ? 'bg-accent text-neutral-950' : 'text-muted'"
+            @click="setAdvanced(true)"
+          >
+            Advanced
+          </button>
+        </div>
+        <p v-if="!advanced" class="text-xs text-muted">Forwarding this domain to a backend.</p>
+      </div>
       <div class="grid gap-3 md:grid-cols-2">
         <div>
           <label class="mb-1 block text-sm text-muted">Name</label>
@@ -338,7 +376,7 @@ onMounted(load)
         </div>
       </div>
 
-      <div>
+      <div v-if="advanced">
         <label class="mb-2 block text-sm text-muted">Action</label>
         <div class="grid gap-2 md:grid-cols-3">
           <label class="card cursor-pointer !p-3" :class="form.action === 'forward' ? 'ring-1 ring-accent' : ''">
@@ -398,7 +436,7 @@ onMounted(load)
         Use this on an HTTP listener. Browsers hitting this domain are sent to https:// with the same host and path.
       </p>
 
-      <div v-if="form.action === 'forward'">
+      <div v-if="advanced && form.action === 'forward'">
         <label class="mb-2 block text-sm text-muted">Who can access it</label>
         <div class="grid gap-2 md:grid-cols-4">
           <label class="card cursor-pointer !p-3" :class="form.access === 'open' ? 'ring-1 ring-accent' : ''">
@@ -424,7 +462,7 @@ onMounted(load)
         </div>
       </div>
 
-      <div v-if="form.action === 'forward' && (form.access === 'ip' || form.access === 'ip_auth')" class="grid gap-3 md:grid-cols-2">
+      <div v-if="advanced && form.action === 'forward' && (form.access === 'ip' || form.access === 'ip_auth')" class="grid gap-3 md:grid-cols-2">
         <div>
           <label class="mb-1 block text-sm text-muted">Allow only these IPs</label>
           <textarea v-model="form.ip_allow" class="input-field min-h-20 font-mono text-xs" placeholder="203.0.113.10&#10;198.51.100.0/24" />
@@ -436,7 +474,7 @@ onMounted(load)
         </div>
       </div>
 
-      <div v-if="form.action === 'forward' && (form.access === 'auth' || form.access === 'ip_auth')" class="grid gap-3 md:grid-cols-2">
+      <div v-if="advanced && form.action === 'forward' && (form.access === 'auth' || form.access === 'ip_auth')" class="grid gap-3 md:grid-cols-2">
         <div>
           <label class="mb-1 block text-sm text-muted">Realm</label>
           <input v-model="form.auth_realm" class="input-field" placeholder="Restricted" />
@@ -453,7 +491,7 @@ onMounted(load)
         </div>
       </div>
 
-      <div v-if="form.action === 'forward'" class="grid gap-3 md:grid-cols-2">
+      <div v-if="advanced && form.action === 'forward'" class="grid gap-3 md:grid-cols-2">
         <div>
           <label class="mb-1 block text-sm text-muted">Add request headers</label>
           <textarea v-model="form.request_headers_add" class="input-field min-h-20 font-mono text-xs" placeholder="X-Example: value" />
@@ -519,7 +557,7 @@ onMounted(load)
             </td>
           </tr>
           <tr v-if="!items.length">
-            <td colspan="7" class="py-4 text-muted">No routes yet. Add a domain and pick an action.</td>
+            <td colspan="7" class="py-4 text-muted">No routes yet. Add a domain, listener, backend, and certificate.</td>
           </tr>
         </tbody>
       </table>
