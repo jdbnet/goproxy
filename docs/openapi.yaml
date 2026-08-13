@@ -3,13 +3,29 @@ info:
   title: GoProxy API
   version: 1.0.0
   description: |
-    Management API for GoProxy. Dashboard session cookies and API keys share this surface.
+    Management API for GoProxy. The dashboard and API keys share this surface.
 
-    API keys use `Authorization: Bearer gpk_...` with least-privilege scopes.
+    Use **Authorize** with `Authorization: Bearer gpk_...`, or log in first
+    (`POST /auth/login`) so the session cookie is sent with Try it out.
+
     Scopes are `{resource}:read` or `{resource}:write` for
     frontends, backends, acls, certs, users, apikeys, audit, stats, settings.
+
+    IDs are optional on create. Omit them and GoProxy generates a slug.
 servers:
   - url: /api/v1
+tags:
+  - name: Auth
+  - name: Frontends
+  - name: Routes
+  - name: Backends
+  - name: Certificates
+  - name: Users
+  - name: API keys
+  - name: Audit
+  - name: Stats
+  - name: Config
+  - name: Notifications
 components:
   securitySchemes:
     cookieAuth:
@@ -19,418 +35,1152 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+      description: API key, for example `gpk_...`
+  parameters:
+    ResourceID:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+      example: app.example.com
+    NumericID:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+      example: 1
+  responses:
+    Error:
+      description: Request failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: bind is required }
+    Deleted:
+      description: Deleted
   schemas:
     Error:
       type: object
       properties:
-        error: { type: string }
-    Webhook:
+        error: { type: string, example: bind is required }
+    StatusOK:
       type: object
-      required: [url]
       properties:
-        id: { type: string, description: Optional on create. Generated from the URL host. }
-        url: { type: string, description: HTTP or HTTPS endpoint that accepts a POST. }
-        format:
-          type: string
-          enum: [generic, discord, slack]
-          description: Payload shape. generic is {type, title, body, severity}.
-        triggers:
+        status: { type: string, example: ok }
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, example: admin }
+        password: { type: string, format: password, example: change-me }
+    LoginResponse:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        user: { $ref: '#/components/schemas/User' }
+    AuthStatus:
+      type: object
+      properties:
+        auth_required: { type: boolean, example: true }
+        authenticated: { type: boolean, example: false }
+    Actor:
+      type: object
+      properties:
+        type: { type: string, example: user }
+        id: { type: string, example: admin }
+        scopes:
           type: array
           items: { type: string }
-          description: >
-            Event types to send. Empty means all events.
-            Known types: backend.up, backend.down, cert.renew.success,
-            cert.renew.failure, git.conflict, errors.high, backup.failure.
-            Prefixes like backend.* and * are allowed.
+          example: [frontends:read, frontends:write]
+    FrontendTLS:
+      type: object
+      properties:
+        enabled: { type: boolean, example: true }
+        min_version: { type: string, example: "1.2", description: TLS 1.2 or 1.3 }
+        hsts: { type: boolean, example: false }
+        ciphers:
+          type: array
+          items: { type: string }
+    FrontendDefault:
+      type: object
+      description: Used when no route matches the host.
+      properties:
+        backend: { type: string, example: app, description: Forward unmatched hosts here }
+        redirect_url: { type: string, example: https://www.example.com }
+        redirect_keep_path: { type: boolean, example: true }
+        https_redirect: { type: boolean, example: true, description: 301 to https:// same host and path. Use on :80. }
     Frontend:
       type: object
+      required: [bind]
       properties:
-        id: { type: string, description: Optional on create. Generated from bind and TLS, for example https-443. }
-        name: { type: string, description: Optional display name. }
-        bind: { type: string }
-        default:
-          type: object
-          description: Used when no route matches the host.
-          properties:
-            backend: { type: string }
-            redirect_url: { type: string }
-            redirect_keep_path: { type: boolean }
-            https_redirect: { type: boolean, description: 301 to https:// same host and path. }
+        id: { type: string, example: https-443, description: Optional on create. Generated from bind and TLS. }
+        name: { type: string, example: Public HTTPS }
+        bind: { type: string, example: 0.0.0.0:443 }
+        tls: { $ref: '#/components/schemas/FrontendTLS' }
+        default: { $ref: '#/components/schemas/FrontendDefault' }
+      example:
+        name: Public HTTPS
+        bind: 0.0.0.0:443
         tls:
+          enabled: true
+          min_version: "1.2"
+          hsts: false
+        default:
+          https_redirect: false
+    Match:
+      type: object
+      required: [host]
+      properties:
+        host: { type: string, example: app.example.com, description: Hostname or *.example.com }
+    PathRewrite:
+      type: object
+      properties:
+        from: { type: string, example: /old }
+        to: { type: string, example: /new }
+    BasicAuthUser:
+      type: object
+      properties:
+        username: { type: string, example: alice }
+        password: { type: string, example: secret }
+    BasicAuth:
+      type: object
+      properties:
+        realm: { type: string, example: Restricted }
+        paths:
+          type: array
+          items: { type: string }
+          example: [/admin]
+        users:
+          type: array
+          items: { $ref: '#/components/schemas/BasicAuthUser' }
+        username: { type: string, description: Single-user shortcut }
+        password: { type: string, description: Single-user shortcut }
+    RateLimit:
+      type: object
+      description: Token bucket, for example 100/s or 30/m
+      properties:
+        per_ip: { type: string, example: 20/s }
+        per_acl: { type: string, example: 100/s }
+        per_backend: { type: string, example: 200/s }
+    Middleware:
+      type: object
+      properties:
+        https_redirect: { type: boolean, example: false }
+        domain_redirect: { type: string, example: www.example.com }
+        redirect_url: { type: string, example: https://www.example.com }
+        redirect_keep_path: { type: boolean, example: true }
+        redirect_code: { type: integer, example: 301 }
+        ip_allow:
+          type: array
+          items: { type: string }
+          example: [10.0.0.0/8]
+        ip_deny:
+          type: array
+          items: { type: string }
+        headers_add:
           type: object
-          properties:
-            enabled: { type: boolean }
-            min_version: { type: string }
-            hsts: { type: boolean }
+          additionalProperties: { type: string }
+          example: { X-App: goproxy }
+        headers_remove:
+          type: array
+          items: { type: string }
+          example: [X-Powered-By]
+        response_headers_add:
+          type: object
+          additionalProperties: { type: string }
+          example: { X-Frame-Options: SAMEORIGIN }
+        response_headers_remove:
+          type: array
+          items: { type: string }
+        path_rewrite: { $ref: '#/components/schemas/PathRewrite' }
+        basic_auth: { $ref: '#/components/schemas/BasicAuth' }
     ACL:
       type: object
+      required: [frontend, match, mode]
       properties:
-        id: { type: string, description: Optional on create. Generated from the host. }
-        name: { type: string, description: Optional display name. }
-        frontend: { type: string }
-        match:
-          type: object
-          properties:
-            host: { type: string }
-        mode: { type: string, enum: [terminate, passthrough] }
-        backend: { type: string, description: Optional when redirect_url is set. }
-        certificate: { type: string }
+        id: { type: string, example: app.example.com, description: Optional on create. Generated from the host. }
+        name: { type: string, example: App }
+        frontend: { type: string, example: https-443 }
+        match: { $ref: '#/components/schemas/Match' }
+        mode: { type: string, enum: [terminate, passthrough], example: terminate }
+        backend: { type: string, example: app, description: Required unless this route only redirects }
+        certificate: { type: string, example: app.example.com }
+        middleware: { $ref: '#/components/schemas/Middleware' }
+        rate_limit: { $ref: '#/components/schemas/RateLimit' }
+      example:
+        name: App
+        frontend: https-443
+        match: { host: app.example.com }
+        mode: terminate
+        backend: app
+        certificate: app.example.com
         middleware:
-          type: object
-          properties:
-            https_redirect: { type: boolean }
-            redirect_url: { type: string }
-            redirect_keep_path: { type: boolean }
-            redirect_code: { type: integer }
-            ip_allow:
-              type: array
-              items: { type: string }
-            ip_deny:
-              type: array
-              items: { type: string }
-            headers_add:
-              type: object
-              additionalProperties: { type: string }
-            headers_remove:
-              type: array
-              items: { type: string }
-            response_headers_add:
-              type: object
-              additionalProperties: { type: string }
-            response_headers_remove:
-              type: array
-              items: { type: string }
-            basic_auth:
-              type: object
-              properties:
-                realm: { type: string }
-                paths:
-                  type: array
-                  items: { type: string }
-                users:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      username: { type: string }
-                      password: { type: string }
-    Backend:
+          redirect_keep_path: true
+    BackendServer:
       type: object
       properties:
-        id: { type: string, description: Optional on create. Generated from the first server host. }
-        name: { type: string, description: Optional display name. }
-        algorithm: { type: string, enum: [round_robin, least_conn, weighted, ip_hash] }
+        url: { type: string, example: http://127.0.0.1:3000, description: HTTP/HTTPS origin for terminate routes }
+        address: { type: string, example: 127.0.0.1:8443, description: host:port for TLS passthrough }
+        role: { type: string, enum: [primary, backup], example: primary }
+        weight: { type: integer, example: 1 }
+    HealthCheck:
+      type: object
+      properties:
+        type: { type: string, enum: [tcp, http, grpc], example: http }
+        path: { type: string, example: /health }
+        interval: { type: string, example: 5s }
+        timeout: { type: string, example: 2s }
+        healthy_threshold: { type: integer, example: 2 }
+        unhealthy_threshold: { type: integer, example: 3 }
+        expect_status: { type: integer, example: 200 }
+        expect_body: { type: string }
+    Backend:
+      type: object
+      required: [servers]
+      properties:
+        id: { type: string, example: app, description: Optional on create. Generated from the first server host. }
+        name: { type: string, example: App }
+        algorithm: { type: string, enum: [round_robin, least_conn, weighted, ip_hash], example: round_robin }
         servers:
+          type: array
+          items: { $ref: '#/components/schemas/BackendServer' }
+        health: { $ref: '#/components/schemas/HealthCheck' }
+        rate_limit: { $ref: '#/components/schemas/RateLimit' }
+      example:
+        name: App
+        algorithm: round_robin
+        servers:
+          - url: http://127.0.0.1:3000
+            role: primary
+            weight: 1
+        health:
+          type: http
+          path: /health
+          interval: 5s
+          timeout: 2s
+          healthy_threshold: 2
+          unhealthy_threshold: 3
+    ServerStatus:
+      type: object
+      properties:
+        backend: { type: string, example: app }
+        name: { type: string, example: App }
+        target: { type: string, example: http://127.0.0.1:3000 }
+        role: { type: string, example: primary }
+        healthy: { type: boolean, example: true }
+        conns: { type: integer, example: 2 }
+        requests: { type: integer, example: 100 }
+        bytes_in: { type: integer, example: 4096 }
+        bytes_out: { type: integer, example: 8192 }
+        latency_ms: { type: number, example: 12.4 }
+        probe_ms: { type: number, example: 3.1 }
+    Certificate:
+      type: object
+      required: [domains, challenge]
+      properties:
+        id: { type: string, example: app.example.com, description: Optional on create. Generated from the first domain. }
+        name: { type: string, example: App }
+        domains:
+          type: array
+          items: { type: string }
+          example: [app.example.com]
+        challenge: { type: string, enum: [http-01, dns-01, custom], example: http-01 }
+        dns_provider: { type: string, example: cloudflare, description: Required for dns-01 }
+        cert_file: { type: string, description: Set by the server for custom PEMs }
+        key_file: { type: string, description: Set by the server for custom PEMs }
+        dns_credentials:
+          type: object
+          additionalProperties: { type: string }
+          description: Provider env values. Write-only. Not returned on GET.
+          example: { CF_DNS_API_TOKEN: your-token }
+        cert_pem: { type: string, description: PEM certificate. Create/update only, for custom challenge. }
+        key_pem: { type: string, description: PEM private key. Create/update only, for custom challenge. }
+      example:
+        name: App
+        domains: [app.example.com]
+        challenge: http-01
+    CertificateView:
+      allOf:
+        - $ref: '#/components/schemas/Certificate'
+        - type: object
+          properties:
+            dns_credentials_set: { type: boolean, example: false }
+            dns_credential_keys:
+              type: array
+              items: { type: string }
+            expires_at: { type: string, example: "2026-11-01T00:00:00Z" }
+            days_left: { type: integer, example: 80 }
+    CertUpload:
+      type: object
+      required: [cert_pem, key_pem]
+      properties:
+        cert_pem: { type: string, example: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n" }
+        key_pem: { type: string, example: "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n" }
+    CertJob:
+      type: object
+      properties:
+        id: { type: string, example: app.example.com }
+        action: { type: string, example: issue }
+        status: { type: string, example: idle }
+        error: { type: string }
+        lines:
           type: array
           items:
             type: object
             properties:
-              url: { type: string }
-              address: { type: string }
-              role: { type: string, enum: [primary, backup] }
-              weight: { type: integer }
-    Certificate:
+              at: { type: string }
+              message: { type: string }
+    DNSProviderField:
       type: object
       properties:
-        id: { type: string, description: Optional on create. Generated from the first domain. }
-        name: { type: string, description: Optional display name. }
-        domains:
+        key: { type: string, example: CF_DNS_API_TOKEN }
+        label: { type: string, example: API token }
+        secret: { type: boolean, example: true }
+        required: { type: boolean, example: true }
+        help: { type: string }
+        placeholder: { type: string }
+    DNSProvider:
+      type: object
+      properties:
+        id: { type: string, example: cloudflare }
+        name: { type: string, example: Cloudflare }
+        fields:
           type: array
-          items: { type: string }
-        challenge: { type: string, enum: [http-01, dns-01, custom] }
-        dns_provider: { type: string }
+          items: { $ref: '#/components/schemas/DNSProviderField' }
     User:
       type: object
       properties:
-        id: { type: integer }
-        username: { type: string }
-        role: { type: string, enum: [admin, operator, viewer] }
+        id: { type: integer, example: 1 }
+        username: { type: string, example: admin }
+        role: { type: string, enum: [admin, operator, viewer], example: admin }
+        created_at: { type: string, example: "2026-08-01T12:00:00Z" }
+    UserCreate:
+      type: object
+      required: [username, password, role]
+      properties:
+        username: { type: string, example: operator }
+        password: { type: string, format: password, example: change-me }
+        role: { type: string, enum: [admin, operator, viewer], example: operator }
+    UserUpdate:
+      type: object
+      properties:
+        password: { type: string, format: password, example: new-password, description: Leave empty to keep the current password }
+        role: { type: string, enum: [admin, operator, viewer], example: viewer }
     APIKey:
       type: object
       properties:
-        id: { type: integer }
-        name: { type: string }
-        prefix: { type: string }
+        id: { type: integer, example: 1 }
+        name: { type: string, example: ci }
+        prefix: { type: string, example: gpk_ab12 }
         scopes:
           type: array
           items: { type: string }
+          example: [frontends:read, stats:read]
+        created_by: { type: integer, example: 1 }
+        created_at: { type: string }
+        last_used_at: { type: string }
+    APIKeyCreate:
+      type: object
+      required: [name, scopes]
+      properties:
+        name: { type: string, example: ci }
+        scopes:
+          type: array
+          items: { type: string }
+          example: [frontends:read, backends:read, acls:read, stats:read]
+    APIKeyCreated:
+      type: object
+      properties:
+        key: { $ref: '#/components/schemas/APIKey' }
+        token: { type: string, example: gpk_..., description: Shown once. Store it now. }
+    AuditEntry:
+      type: object
+      properties:
+        id: { type: integer, example: 12 }
+        at: { type: string }
+        actor_type: { type: string, example: user }
+        actor_id: { type: string, example: admin }
+        action: { type: string, example: frontend.create }
+        resource: { type: string, example: frontends/https-443 }
+        before: { type: string }
+        after: { type: string }
+    ScopeStats:
+      type: object
+      properties:
+        requests: { type: integer, example: 42 }
+        bytes_in: { type: integer, example: 1024 }
+        bytes_out: { type: integer, example: 4096 }
+        latency_ms: { type: number, example: 8.2 }
+    Stats:
+      type: object
+      properties:
+        at: { type: string }
+        started_at: { type: string }
+        uptime_seconds: { type: number, example: 3600 }
+        requests: { type: number, example: 10 }
+        errors: { type: number, example: 0 }
+        bytes_in: { type: number }
+        bytes_out: { type: number }
+        connections: { type: number, example: 3 }
+        latency_ms: { type: number, example: 12.5 }
+        backends_healthy: { type: number, example: 2 }
+        backends_total: { type: number, example: 2 }
+        requests_total: { type: number, example: 900 }
+        bytes_in_total: { type: number }
+        bytes_out_total: { type: number }
+        frontends:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/ScopeStats' }
+        routes:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/ScopeStats' }
+        backends:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/ScopeStats' }
+        servers:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/ScopeStats' }
+    StatsHistory:
+      type: object
+      properties:
+        history:
+          type: array
+          items: { $ref: '#/components/schemas/Stats' }
+        limitation: { type: string }
+    Webhook:
+      type: object
+      required: [url]
+      properties:
+        id: { type: string, example: hook-hooks.example.com, description: Optional on create. Generated from the URL host. }
+        url: { type: string, example: https://hooks.example.com/goproxy }
+        format:
+          type: string
+          enum: [generic, discord, slack]
+          example: generic
+          description: generic is {type, title, body, severity}
+        triggers:
+          type: array
+          items: { type: string }
+          example: [backend.down, cert.renew.failure]
+          description: >
+            Empty means all events. Known types: backend.up, backend.down,
+            cert.renew.success, cert.renew.failure, git.conflict, errors.high,
+            backup.failure. Prefixes like backend.* and * are allowed.
+      example:
+        url: https://hooks.example.com/goproxy
+        format: generic
+        triggers: [backend.down, cert.renew.failure]
+    Notifications:
+      type: object
+      properties:
+        webhooks:
+          type: array
+          items: { $ref: '#/components/schemas/Webhook' }
+    ProxyConfig:
+      type: object
+      properties:
+        frontends:
+          type: array
+          items: { $ref: '#/components/schemas/Frontend' }
+        acls:
+          type: array
+          items: { $ref: '#/components/schemas/ACL' }
+        backends:
+          type: array
+          items: { $ref: '#/components/schemas/Backend' }
+        certificates:
+          type: array
+          items: { $ref: '#/components/schemas/Certificate' }
+        notifications: { $ref: '#/components/schemas/Notifications' }
+      example:
+        frontends:
+          - name: HTTP
+            bind: 0.0.0.0:80
+            default: { https_redirect: true }
+          - name: HTTPS
+            bind: 0.0.0.0:443
+            tls: { enabled: true, min_version: "1.2" }
+        acls:
+          - name: App
+            frontend: https-443
+            match: { host: app.example.com }
+            mode: terminate
+            backend: app
+            certificate: app.example.com
+        backends:
+          - name: App
+            algorithm: round_robin
+            servers: [{ url: http://127.0.0.1:3000, role: primary }]
+        certificates:
+          - name: App
+            domains: [app.example.com]
+            challenge: http-01
+        notifications:
+          webhooks: []
+    Settings:
+      type: object
+      properties:
+        listen: { type: string, example: 127.0.0.1:8080 }
+        log_level: { type: string, example: info }
+        data_dir: { type: string, example: /var/lib/goproxy }
+        proxy_config: { type: string, example: /etc/goproxy/proxy.yaml }
+        acme_email: { type: string }
+        acme_directory: { type: string, example: https://acme-v02.api.letsencrypt.org/directory }
+        git_enabled: { type: boolean, example: false }
+        git_url: { type: string }
+        git_branch: { type: string, example: main }
+        update:
+          type: object
+          properties:
+            enabled: { type: boolean, example: true }
+    GitSync:
+      type: object
+      properties:
+        sha: { type: string, example: abcdef0123456789 }
 security:
   - cookieAuth: []
   - bearerAuth: []
 paths:
   /health:
     get:
+      tags: [Auth]
       security: []
       summary: Liveness
       responses:
-        '200': { description: ok }
+        '200':
+          description: Process is up
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusOK' }
   /auth/status:
     get:
+      tags: [Auth]
       security: []
       summary: Auth status
       responses:
-        '200': { description: status }
+        '200':
+          description: Whether login is required and the cookie is valid
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthStatus' }
   /auth/login:
     post:
+      tags: [Auth]
       security: []
       summary: Login
+      description: Sets the `goproxy_session` cookie. Use this before Try it out on other endpoints.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+            example: { username: admin, password: change-me }
       responses:
-        '200': { description: ok }
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '401': { $ref: '#/components/responses/Error' }
   /auth/logout:
     post:
+      tags: [Auth]
       summary: Logout
       responses:
-        '204': { description: ok }
+        '204': { $ref: '#/components/responses/Deleted' }
   /auth/me:
     get:
+      tags: [Auth]
       summary: Current user
       responses:
-        '200': { description: actor }
+        '200':
+          description: Actor for this session or API key
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Actor' }
   /frontends:
     get:
+      tags: [Frontends]
       summary: List frontends
       responses:
-        '200': { description: list }
+        '200':
+          description: Listeners
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Frontend' }
     post:
+      tags: [Frontends]
       summary: Create frontend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Frontend' }
+            example:
+              name: Public HTTPS
+              bind: 0.0.0.0:443
+              tls: { enabled: true, min_version: "1.2", hsts: false }
       responses:
-        '201': { description: created }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Frontend' }
+        '400': { $ref: '#/components/responses/Error' }
   /frontends/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
     put:
+      tags: [Frontends]
       summary: Update frontend
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Frontend' }
+            example:
+              id: https-443
+              name: Public HTTPS
+              bind: 0.0.0.0:443
+              tls: { enabled: true, min_version: "1.2", hsts: false }
+              default: { https_redirect: false }
       responses:
-        '200': { description: updated }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Frontend' }
+        '400': { $ref: '#/components/responses/Error' }
     delete:
+      tags: [Frontends]
       summary: Delete frontend
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
       responses:
-        '204': { description: deleted }
+        '204': { $ref: '#/components/responses/Deleted' }
+        '400': { $ref: '#/components/responses/Error' }
   /acls:
     get:
-      summary: List ACLs
+      tags: [Routes]
+      summary: List routes
       responses:
-        '200': { description: list }
+        '200':
+          description: Host routes (ACLs)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ACL' }
     post:
-      summary: Create ACL
+      tags: [Routes]
+      summary: Create route
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ACL' }
+            example:
+              name: App
+              frontend: https-443
+              match: { host: app.example.com }
+              mode: terminate
+              backend: app
+              certificate: app.example.com
       responses:
-        '201': { description: created }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ACL' }
+        '400': { $ref: '#/components/responses/Error' }
   /acls/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
     put:
-      summary: Update ACL
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+      tags: [Routes]
+      summary: Update route
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ACL' }
+            example:
+              id: app.example.com
+              name: App
+              frontend: https-443
+              match: { host: app.example.com }
+              mode: terminate
+              backend: app
+              certificate: app.example.com
+              middleware:
+                ip_allow: [10.0.0.0/8]
       responses:
-        '200': { description: updated }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ACL' }
+        '400': { $ref: '#/components/responses/Error' }
     delete:
-      summary: Delete ACL
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+      tags: [Routes]
+      summary: Delete route
       responses:
-        '204': { description: deleted }
+        '204': { $ref: '#/components/responses/Deleted' }
+        '400': { $ref: '#/components/responses/Error' }
   /backends:
     get:
+      tags: [Backends]
       summary: List backends
       responses:
-        '200': { description: list }
+        '200':
+          description: Pools
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Backend' }
     post:
+      tags: [Backends]
       summary: Create backend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Backend' }
+            example:
+              name: App
+              algorithm: round_robin
+              servers:
+                - url: http://127.0.0.1:3000
+                  role: primary
+                  weight: 1
+              health:
+                type: http
+                path: /health
+                interval: 5s
+                timeout: 2s
       responses:
-        '201': { description: created }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Backend' }
+        '400': { $ref: '#/components/responses/Error' }
+  /backends/status:
+    get:
+      tags: [Backends]
+      summary: Backend health
+      responses:
+        '200':
+          description: Per-server health and traffic
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ServerStatus' }
   /backends/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
     put:
+      tags: [Backends]
       summary: Update backend
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Backend' }
+            example:
+              id: app
+              name: App
+              algorithm: round_robin
+              servers:
+                - url: http://127.0.0.1:3000
+                  role: primary
+                  weight: 1
+              health:
+                type: http
+                path: /health
+                interval: 5s
+                timeout: 2s
       responses:
-        '200': { description: updated }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Backend' }
+        '400': { $ref: '#/components/responses/Error' }
     delete:
+      tags: [Backends]
       summary: Delete backend
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
       responses:
-        '204': { description: deleted }
+        '204': { $ref: '#/components/responses/Deleted' }
+        '400': { $ref: '#/components/responses/Error' }
   /dns-providers:
     get:
-      summary: List DNS-01 providers and credential fields
+      tags: [Certificates]
+      summary: List DNS-01 providers
+      description: Credential field names for each provider. Use those keys in `dns_credentials`.
       responses:
-        '200': { description: list }
+        '200':
+          description: Providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DNSProvider' }
   /certificates:
     get:
+      tags: [Certificates]
       summary: List certificates
       responses:
-        '200': { description: list }
+        '200':
+          description: Certificates
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CertificateView' }
     post:
+      tags: [Certificates]
       summary: Create certificate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Certificate' }
+            examples:
+              http01:
+                summary: Let's Encrypt HTTP-01
+                value:
+                  name: App
+                  domains: [app.example.com]
+                  challenge: http-01
+              dns01:
+                summary: Let's Encrypt DNS-01
+                value:
+                  name: Wildcard
+                  domains: ["*.example.com", example.com]
+                  challenge: dns-01
+                  dns_provider: cloudflare
+                  dns_credentials:
+                    CF_DNS_API_TOKEN: your-token
+              custom:
+                summary: Upload PEM
+                value:
+                  name: Custom
+                  domains: [app.example.com]
+                  challenge: custom
+                  cert_pem: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n"
+                  key_pem: "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
       responses:
-        '201': { description: created }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CertificateView' }
+        '400': { $ref: '#/components/responses/Error' }
   /certificates/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
     put:
+      tags: [Certificates]
       summary: Update certificate
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Certificate' }
+            example:
+              id: app.example.com
+              name: App
+              domains: [app.example.com]
+              challenge: http-01
       responses:
-        '200': { description: updated }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CertificateView' }
+        '400': { $ref: '#/components/responses/Error' }
     delete:
+      tags: [Certificates]
       summary: Delete certificate
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
       responses:
-        '204': { description: deleted }
+        '204': { $ref: '#/components/responses/Deleted' }
+        '400': { $ref: '#/components/responses/Error' }
   /certificates/{id}/upload:
     post:
-      summary: Upload custom PEM cert and key
+      tags: [Certificates]
+      summary: Upload custom PEM
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+        - $ref: '#/components/parameters/ResourceID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CertUpload' }
+            example:
+              cert_pem: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n"
+              key_pem: "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
       responses:
-        '200': { description: uploaded }
+        '200':
+          description: Uploaded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusOK' }
+              example: { status: uploaded }
+        '400': { $ref: '#/components/responses/Error' }
   /certificates/{id}/renew:
     post:
+      tags: [Certificates]
       summary: Renew certificate
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
+        - $ref: '#/components/parameters/ResourceID'
       responses:
-        '200': { description: renewed }
+        '200':
+          description: Renewed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusOK' }
+              example: { status: renewed }
+        '400': { $ref: '#/components/responses/Error' }
+  /certificates/{id}/job:
+    get:
+      tags: [Certificates]
+      summary: Certificate job log
+      parameters:
+        - $ref: '#/components/parameters/ResourceID'
+      responses:
+        '200':
+          description: Issue or renew progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CertJob' }
   /users:
     get:
+      tags: [Users]
       summary: List users
       responses:
-        '200': { description: list }
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
     post:
+      tags: [Users]
       summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserCreate' }
+            example: { username: operator, password: change-me, role: operator }
       responses:
-        '201': { description: created }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/Error' }
   /users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/NumericID'
     put:
+      tags: [Users]
       summary: Update user
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserUpdate' }
+            example: { role: viewer, password: "" }
       responses:
-        '200': { description: updated }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/Error' }
     delete:
+      tags: [Users]
       summary: Delete user
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
       responses:
-        '204': { description: deleted }
+        '204': { $ref: '#/components/responses/Deleted' }
+        '400': { $ref: '#/components/responses/Error' }
   /apikeys:
     get:
+      tags: [API keys]
       summary: List API keys
       responses:
-        '200': { description: list }
+        '200':
+          description: Keys (token is never listed)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/APIKey' }
     post:
+      tags: [API keys]
       summary: Create API key
+      description: The raw token is returned once in `token`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/APIKeyCreate' }
+            example:
+              name: ci
+              scopes: [frontends:read, backends:read, acls:read, stats:read]
       responses:
-        '201': { description: created }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/APIKeyCreated' }
+        '400': { $ref: '#/components/responses/Error' }
   /apikeys/{id}:
     delete:
+      tags: [API keys]
       summary: Delete API key
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - $ref: '#/components/parameters/NumericID'
       responses:
-        '204': { description: deleted }
+        '204': { $ref: '#/components/responses/Deleted' }
+        '400': { $ref: '#/components/responses/Error' }
   /audit:
     get:
+      tags: [Audit]
       summary: Audit log
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+          example: 50
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+          example: 0
       responses:
-        '200': { description: list }
+        '200':
+          description: Entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AuditEntry' }
   /stats:
     get:
+      tags: [Stats]
       summary: Live stats
       description: >
         Window counters plus lifetime totals since process start.
         Includes `latency_ms` (window average), `uptime_seconds`, and `started_at`.
-        `frontends`, `routes`, `backends`, and `servers` map ids to
-        `{requests, bytes_in, bytes_out, latency_ms}`.
       responses:
-        '200': { description: snapshot }
+        '200':
+          description: Snapshot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Stats' }
   /stats/history:
     get:
-      summary: Ring buffer history (resets on restart)
+      tags: [Stats]
+      summary: Stats history
+      description: In-memory ring buffer (about one hour). Resets on restart.
       responses:
-        '200': { description: snapshots }
+        '200':
+          description: Snapshots
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatsHistory' }
   /config:
     get:
+      tags: [Config]
       summary: Full proxy config
       responses:
-        '200': { description: yaml as json }
+        '200':
+          description: Current proxy.yaml as JSON
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProxyConfig' }
     put:
+      tags: [Config]
       summary: Replace proxy config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProxyConfig' }
       responses:
-        '200': { description: applied }
+        '200':
+          description: Applied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProxyConfig' }
+        '400': { $ref: '#/components/responses/Error' }
   /config/validate:
     post:
+      tags: [Config]
       summary: Dry-run validate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProxyConfig' }
       responses:
-        '200': { description: ok }
+        '200':
+          description: Valid
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusOK' }
+        '400': { $ref: '#/components/responses/Error' }
   /config/sync:
     post:
+      tags: [Config]
       summary: Pull Git and apply
       responses:
-        '200': { description: applied }
+        '200':
+          description: Applied
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GitSync' }
+        '400': { $ref: '#/components/responses/Error' }
   /backup:
     post:
-      summary: Run state.db snapshot now
+      tags: [Config]
+      summary: Snapshot state.db now
       responses:
-        '200': { description: ok }
+        '200':
+          description: Backup finished
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusOK' }
   /settings:
     get:
-      summary: App settings (sanitized)
+      tags: [Config]
+      summary: App settings
+      description: Sanitized process settings from config.yaml. Secrets are omitted.
       responses:
-        '200': { description: settings }
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
   /notifications:
     get:
+      tags: [Notifications]
       summary: List webhooks
       responses:
         '200':
-          description: webhooks
+          description: Webhooks
           content:
             application/json:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Webhook' }
     put:
+      tags: [Notifications]
       summary: Replace webhooks
       requestBody:
         required: true
@@ -439,17 +1189,36 @@ paths:
             schema:
               type: array
               items: { $ref: '#/components/schemas/Webhook' }
+            example:
+              - url: https://hooks.example.com/goproxy
+                format: generic
+                triggers: [backend.down, cert.renew.failure]
       responses:
-        '200': { description: saved }
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Webhook' }
+        '400': { $ref: '#/components/responses/Error' }
   /notifications/test:
     post:
-      summary: Send a test event to a webhook URL
-      description: Does not persist the webhook. Works with an unsaved form.
+      tags: [Notifications]
+      summary: Send a test webhook
+      description: Does not persist the webhook. Works with an unsaved URL.
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/Webhook' }
+            example:
+              url: https://hooks.example.com/goproxy
+              format: generic
       responses:
-        '200': { description: delivered }
-        '502': { description: remote rejected or unreachable }
+        '200':
+          description: Delivered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatusOK' }
+        '502': { $ref: '#/components/responses/Error' }

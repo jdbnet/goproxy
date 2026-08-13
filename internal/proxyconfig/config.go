@@ -12,11 +12,11 @@ import (
 )
 
 type Config struct {
-	Frontends     []Frontend    `yaml:"frontends"`
-	ACLs          []ACL         `yaml:"acls"`
-	Backends      []Backend     `yaml:"backends"`
-	Certificates  []Certificate `yaml:"certificates"`
-	Notifications Notifications `yaml:"notifications"`
+	Frontends     []Frontend    `yaml:"frontends" json:"frontends"`
+	ACLs          []ACL         `yaml:"acls" json:"acls"`
+	Backends      []Backend     `yaml:"backends" json:"backends"`
+	Certificates  []Certificate `yaml:"certificates" json:"certificates"`
+	Notifications Notifications `yaml:"notifications" json:"notifications"`
 }
 
 type Frontend struct {

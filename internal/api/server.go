@@ -184,7 +184,7 @@ func (s *Server) swaggerUI(w http.ResponseWriter, r *http.Request) {
 </head><body>
 <div id="swagger-ui"></div>
 <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
-<script>SwaggerUIBundle({url:'/api-docs/openapi.yaml',dom_id:'#swagger-ui'})</script>
+<script>SwaggerUIBundle({url:'/api-docs/openapi.yaml',dom_id:'#swagger-ui',tryItOutEnabled:true,persistAuthorization:true,withCredentials:true,defaultModelExpandDepth:3,defaultModelsExpandDepth:2,displayRequestDuration:true})</script>
 </body></html>`))
 }
 
