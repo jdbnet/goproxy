@@ -5,14 +5,12 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -42,7 +40,6 @@ type Engine struct {
 	mu        sync.Mutex
 	frontends map[string]*frontend
 	conns     atomic.Int64
-	access    *slog.Logger
 	transport http.RoundTripper
 }
 
@@ -98,7 +95,6 @@ func (q *connQueue) push(c net.Conn) {
 }
 
 func New(certs *tlsx.Store, pools *lb.Registry, h *health.Checker, m *metrics.Metrics, n *notify.Notifier) *Engine {
-	access := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	return &Engine{
 		pools:     pools,
 		health:    h,
@@ -107,7 +103,6 @@ func New(certs *tlsx.Store, pools *lb.Registry, h *health.Checker, m *metrics.Me
 		limit:     ratelimit.New(),
 		notify:    n,
 		frontends: map[string]*frontend{},
-		access:    access,
 		transport: backendTransport(),
 	}
 }
@@ -320,10 +315,12 @@ func (e *Engine) passthrough(acl *proxyconfig.ACL, client net.Conn) {
 	_ = up.Close()
 	<-errc
 	e.metrics.ObserveRequest(dial, 200, inB.Load(), outB.Load(), acl.Frontend, acl.ID, acl.Backend, srv.Target())
-	e.logAccess(map[string]any{
-		"type": "access", "mode": "passthrough", "acl": acl.ID, "sni": acl.Match.Host,
-		"backend": srv.Target(), "duration_ms": time.Since(start).Milliseconds(),
-	})
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		slog.Debug("request",
+			"type", "access", "mode", "passthrough", "acl", acl.ID, "sni", acl.Match.Host,
+			"backend", srv.Target(), "duration_ms", time.Since(start).Milliseconds(),
+		)
+	}
 }
 
 func (e *Engine) serveHTTP(f *frontend, w http.ResponseWriter, r *http.Request) {
@@ -431,12 +428,14 @@ func (e *Engine) reverseProxy(acl *proxyconfig.ACL) http.Handler {
 			lat = time.Since(start)
 		}
 		e.metrics.ObserveRequest(lat, rec.status, body.n, rec.bytes, acl.Frontend, acl.ID, acl.Backend, srv.Target())
-		e.logAccess(map[string]any{
-			"type": "access", "mode": "terminate", "acl": acl.ID, "host": r.Host,
-			"path": r.URL.Path, "status": rec.status, "backend": srv.Target(),
-			"latency_ms":  lat.Milliseconds(),
-			"duration_ms": time.Since(start).Milliseconds(),
-		})
+		if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+			slog.Debug("request",
+				"type", "access", "mode", "terminate", "acl", acl.ID, "host", r.Host,
+				"path", r.URL.Path, "status", rec.status, "backend", srv.Target(),
+				"latency_ms", lat.Milliseconds(),
+				"duration_ms", time.Since(start).Milliseconds(),
+			)
+		}
 		if rec.status >= 500 {
 			e.maybeErrorRate()
 		}
@@ -467,17 +466,6 @@ func (e *Engine) maybeErrorRate() {
 			Body: "Recent window has elevated 5xx responses", Severity: "warn",
 		})
 	}
-}
-
-func (e *Engine) logAccess(fields map[string]any) {
-	b, _ := json.Marshal(fields)
-	var rec map[string]any
-	_ = json.Unmarshal(b, &rec)
-	attrs := make([]any, 0, len(rec)*2)
-	for k, v := range rec {
-		attrs = append(attrs, k, v)
-	}
-	e.access.Info("request", attrs...)
 }
 
 func matchACL(cfg *proxyconfig.Config, frontendID, host string) *proxyconfig.ACL {

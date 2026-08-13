@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ type Config struct {
 	Backup        BackupConfig `yaml:"backup"`
 	TLS           TLSConfig    `yaml:"tls"`
 	Update        UpdateConfig `yaml:"update"`
+	LogLevel      string       `yaml:"log_level"`
 }
 
 type UpdateConfig struct {
@@ -102,6 +104,24 @@ func defaultConfig() *Config {
 		Update: UpdateConfig{
 			Enabled: true,
 		},
+		LogLevel: "info",
+	}
+}
+
+func (c *Config) SlogLevel() slog.Level {
+	return ParseLogLevel(c.LogLevel)
+}
+
+func ParseLogLevel(s string) slog.Level {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
 	}
 }
 
@@ -161,6 +181,9 @@ func applyEnv(cfg *Config) {
 	}
 	if v := os.Getenv("GOPROXY_UPDATE_URL"); v != "" {
 		cfg.Update.URL = v
+	}
+	if v := os.Getenv("GOPROXY_LOG_LEVEL"); v != "" {
+		cfg.LogLevel = v
 	}
 }
 

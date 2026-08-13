@@ -560,6 +560,7 @@ func (s *Server) runBackup(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"listen":         s.app.Listen,
+		"log_level":      s.app.LogLevel,
 		"data_dir":       s.app.DataDir,
 		"proxy_config":   s.app.ProxyConfig,
 		"acme_email":     s.app.ACMEEmail,

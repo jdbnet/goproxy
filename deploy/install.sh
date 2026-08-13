@@ -41,6 +41,7 @@ mkdir -p "$CONFIG_DIR" "$DATA_DIR"
 if [[ ! -f "${CONFIG_DIR}/config.yaml" ]]; then
   cat > "${CONFIG_DIR}/config.yaml" <<EOF
 listen: 127.0.0.1:8080
+log_level: info
 data_dir: ${DATA_DIR}
 proxy_config: ${CONFIG_DIR}/proxy.yaml
 acme_email: ""

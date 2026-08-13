@@ -38,8 +38,6 @@ func main() {
 		return
 	}
 
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-
 	configPath := "config.yaml"
 	if args := flag.Args(); len(args) > 0 {
 		configPath = args[0]
@@ -50,6 +48,7 @@ func main() {
 		slog.Error("config", "err", err)
 		os.Exit(1)
 	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: app.SlogLevel()})))
 	if err := os.MkdirAll(app.DataDir, 0o755); err != nil {
 		slog.Error("data_dir", "err", err)
 		os.Exit(1)

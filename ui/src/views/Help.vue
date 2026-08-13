@@ -20,6 +20,7 @@ import { RouterLink } from 'vue-router'
       <p class="text-sm text-muted">
         If <code class="text-heading">proxy.yaml</code> is missing, GoProxy creates the directory and an empty file.
         Set <code class="text-heading">acme_email</code> in <code class="text-heading">config.yaml</code> before requesting Let's Encrypt certificates.
+        <code class="text-heading">log_level</code> defaults to <code class="text-heading">info</code>. Per-request access logs only appear at <code class="text-heading">debug</code>.
       </p>
     </section>
 

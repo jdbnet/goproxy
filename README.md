@@ -86,11 +86,13 @@ API docs live at `/api-docs` on the same port as the UI.
 
 | Path | What it is |
 | --- | --- |
-| `/etc/goproxy/config.yaml` | Process settings: UI listen address, data dir, ACME email, Git, backups |
+| `/etc/goproxy/config.yaml` | Process settings: UI listen address, log level, data dir, ACME email, Git, backups |
 | `/etc/goproxy/proxy.yaml` | Listeners, routes, backends, certificates (what the UI edits) |
 | `/var/lib/goproxy` | SQLite state, certs, DNS tokens, backups |
 
 The UI listen address in `config.yaml` is only for admin. Public traffic uses the frontends you add.
+
+`log_level` is `error`, `warn`, `info` (default), or `debug`. Per-request access lines are debug only, so a busy site will not fill the journal. Errors, health changes, and startup stay at info. Override with `GOPROXY_LOG_LEVEL`.
 
 ## Auto update
 
