@@ -16,20 +16,32 @@ function emptyForm() {
     id: '',
     name: '',
     algorithm: 'round_robin',
-    servers_text: 'http://127.0.0.1:3000',
+    primary_text: 'http://127.0.0.1:3000',
+    backup_text: '',
     health_type: 'none',
     health_path: '/healthz',
   }
 }
 
-function parseServers(text) {
-  return text.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
-    const [target, role, weight] = line.split('|')
-    const row = { role: role || 'primary', weight: Number(weight || 1) }
+function parseServers(text, role) {
+  return String(text || '').split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [target, weight] = line.split('|')
+    const row = { role, weight: Number(weight || 1) }
     if (target.includes('://')) row.url = target.trim()
     else row.address = target.trim()
     return row
   })
+}
+
+function formatServers(servers, role) {
+  return (servers || [])
+    .filter((s) => (s.role || 'primary') === role)
+    .map((s) => {
+      const target = s.url || s.address || ''
+      if (s.weight && s.weight !== 1) return `${target}|${s.weight}`
+      return target
+    })
+    .join('\n')
 }
 
 function serverTarget(s) {
@@ -49,7 +61,13 @@ function healthLabel(b) {
   return { http: 'HTTP', tcp: 'TCP', grpc: 'gRPC' }[b.health.type] || b.health.type
 }
 
-function algorithmLabel(algo) {
+function roleCounts(b) {
+  const servers = b?.servers || []
+  const primary = servers.filter((s) => (s.role || 'primary') === 'primary').length
+  const backup = servers.filter((s) => s.role === 'backup').length
+  if (!backup) return `${servers.length}`
+  return `${primary} primary, ${backup} backup`
+}
   return {
     round_robin: 'Round robin',
     least_conn: 'Least connections',
@@ -69,7 +87,14 @@ async function load() {
 
 async function save() {
   error.value = ''
-  const servers = parseServers(form.value.servers_text)
+  const servers = [
+    ...parseServers(form.value.primary_text, 'primary'),
+    ...parseServers(form.value.backup_text, 'backup'),
+  ]
+  if (!servers.length) {
+    error.value = 'Add at least one primary destination'
+    return
+  }
   const body = {
     name: form.value.name.trim(),
     algorithm: form.value.algorithm,
@@ -105,7 +130,8 @@ function edit(b) {
     id: b.id,
     name: b.name || '',
     algorithm: b.algorithm,
-    servers_text: (b.servers || []).map((s) => s.url || s.address).join('\n'),
+    primary_text: formatServers(b.servers, 'primary'),
+    backup_text: formatServers(b.servers, 'backup'),
     health_type: b.health?.type || 'none',
     health_path: b.health?.path || '/healthz',
   }
@@ -124,7 +150,7 @@ onMounted(load)
     <div>
       <h1 class="text-xl font-semibold">Backends</h1>
       <p class="mt-1 text-sm text-muted">
-        Where traffic goes. One URL or host:port per line. Use http(s):// for decrypted routes, and host:port for TLS passthrough.
+        Where traffic goes. Primaries take requests first. Backups are used only when every primary is down.
       </p>
     </div>
     <p v-if="error" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">{{ error }}</p>
@@ -133,14 +159,26 @@ onMounted(load)
         <label class="mb-1 block text-sm text-muted">Name</label>
         <input v-model="form.name" class="input-field" placeholder="App servers" />
       </div>
-      <div>
-        <label class="mb-1 block text-sm text-muted">Destinations</label>
-        <textarea
-          v-model="form.servers_text"
-          class="input-field min-h-24 font-mono"
-          placeholder="http://127.0.0.1:3000"
-          required
-        />
+      <div class="grid gap-3 md:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-sm text-muted">Primary</label>
+          <textarea
+            v-model="form.primary_text"
+            class="input-field min-h-24 font-mono"
+            placeholder="http://127.0.0.1:3000"
+            required
+          />
+          <p class="mt-1 text-xs text-muted">One URL or host:port per line. http(s):// for decrypted routes, host:port for TLS passthrough.</p>
+        </div>
+        <div>
+          <label class="mb-1 block text-sm text-muted">Backup</label>
+          <textarea
+            v-model="form.backup_text"
+            class="input-field min-h-24 font-mono"
+            placeholder="http://127.0.0.1:3001"
+          />
+          <p class="mt-1 text-xs text-muted">Optional. Used only if all primaries fail health checks or go down.</p>
+        </div>
       </div>
       <div class="grid gap-3 md:grid-cols-2">
         <div>
@@ -193,7 +231,7 @@ onMounted(load)
             <td class="max-w-xs truncate text-muted" :title="destinationList(b)">{{ destinationList(b) }}</td>
             <td>{{ algorithmLabel(b.algorithm) }}</td>
             <td>{{ healthLabel(b) }}</td>
-            <td>{{ (b.servers || []).length }}</td>
+            <td>{{ roleCounts(b) }}</td>
             <td class="whitespace-nowrap text-muted" :title="trafficTitle(stats.backends?.[b.id])">{{ trafficLabel(stats.backends?.[b.id]) }}</td>
             <td class="text-right">
               <div class="flex justify-end gap-1.5">

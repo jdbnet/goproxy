@@ -46,7 +46,7 @@ import { RouterLink } from 'vue-router'
         </li>
         <li>
           <RouterLink to="/backends" class="text-accent">Backends</RouterLink>
-          are your apps. One URL per line for HTTPS routes, or <code class="text-heading">host:port</code> for passthrough.
+          are your apps. Put live URLs in Primary. Optional Backup servers only take traffic when every primary is down.
         </li>
       </ul>
     </section>
