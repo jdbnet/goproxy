@@ -68,6 +68,8 @@ function roleCounts(b) {
   if (!backup) return `${servers.length}`
   return `${primary} primary, ${backup} backup`
 }
+
+function algorithmLabel(algo) {
   return {
     round_robin: 'Round robin',
     least_conn: 'Least connections',
