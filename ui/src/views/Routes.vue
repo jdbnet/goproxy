@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from '@lucide/vue'
 
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import api from '@/api/client'
+import { certificateCoversHost, findCertificateForHost, hostKey } from '@/lib/certs'
 import { trafficLabel, trafficTitle } from '@/lib/bytes'
 
 const items = ref([])
@@ -325,6 +326,25 @@ watch(() => form.value.mode, () => {
     form.value.frontend = ''
   }
 })
+
+function syncCertificateForHost() {
+  if (form.value.action !== 'forward' || form.value.mode !== 'terminate') return
+  const host = form.value.host
+  const match = findCertificateForHost(certs.value, host)
+  if (match) {
+    form.value.certificate = match
+    return
+  }
+  if (!hostKey(host)) return
+  const current = certs.value.find((c) => c.id === form.value.certificate)
+  if (current && !certificateCoversHost(current, host)) {
+    form.value.certificate = ''
+  }
+}
+
+watch(() => form.value.host, syncCertificateForHost)
+watch(() => [form.value.mode, form.value.action], syncCertificateForHost)
+watch(certs, syncCertificateForHost)
 
 onMounted(load)
 </script>
