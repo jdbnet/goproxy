@@ -471,6 +471,24 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{"key": key, "token": plain})
 }
 
+func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	var req struct {
+		Scopes []string `json:"scopes"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	key, err := s.auth.UpdateAPIKeyScopes(id, req.Scopes)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	a := s.actor(r)
+	_ = s.audit.Record(a.Type, a.ID, "apikey.update", "apikeys/"+key.Name, nil, key)
+	writeJSON(w, http.StatusOK, key)
+}
+
 func (s *Server) deleteKey(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err := s.auth.DeleteAPIKey(id); err != nil {

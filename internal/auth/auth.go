@@ -31,13 +31,17 @@ var roleScopes = map[Role][]string{
 	RoleViewer:   viewerScopes(),
 }
 
-func allScopes() []string {
+func AllScopes() []string {
 	resources := []string{"frontends", "backends", "acls", "certs", "users", "apikeys", "audit", "stats", "settings"}
 	var out []string
 	for _, r := range resources {
 		out = append(out, r+":read", r+":write")
 	}
 	return out
+}
+
+func allScopes() []string {
+	return AllScopes()
 }
 
 func operatorScopes() []string {
@@ -394,6 +398,46 @@ func (s *Service) ListAPIKeys() ([]APIKey, error) {
 func (s *Service) DeleteAPIKey(id int64) error {
 	_, err := s.db.Exec(`DELETE FROM api_keys WHERE id = ?`, id)
 	return err
+}
+
+func (s *Service) scanAPIKey(row interface {
+	Scan(dest ...any) error
+}) (*APIKey, error) {
+	var k APIKey
+	var scopes string
+	var last sql.NullString
+	var createdBy sql.NullInt64
+	if err := row.Scan(&k.ID, &k.Name, &k.Prefix, &scopes, &createdBy, &k.CreatedAt, &last); err != nil {
+		return nil, err
+	}
+	_ = json.Unmarshal([]byte(scopes), &k.Scopes)
+	if createdBy.Valid {
+		k.CreatedBy = &createdBy.Int64
+	}
+	if last.Valid {
+		k.LastUsedAt = &last.String
+	}
+	return &k, nil
+}
+
+func (s *Service) UpdateAPIKeyScopes(id int64, scopes []string) (*APIKey, error) {
+	scopes, err := NormalizeScopes(scopes)
+	if err != nil {
+		return nil, err
+	}
+	scopeJSON, _ := json.Marshal(scopes)
+	res, err := s.db.Exec(`UPDATE api_keys SET scopes = ? WHERE id = ?`, string(scopeJSON), id)
+	if err != nil {
+		return nil, err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return nil, fmt.Errorf("api key not found")
+	}
+	return s.scanAPIKey(s.db.QueryRow(
+		`SELECT id, name, prefix, scopes, created_by, created_at, last_used_at FROM api_keys WHERE id = ?`,
+		id,
+	))
 }
 
 func SetSessionCookie(w http.ResponseWriter, token string) {

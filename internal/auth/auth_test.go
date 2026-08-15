@@ -35,6 +35,20 @@ func TestUserAndAPIKey(t *testing.T) {
 	if err != nil || looked.ID != key.ID {
 		t.Fatalf("lookup: %v %+v", err, looked)
 	}
+	updated, err := s.UpdateAPIKeyScopes(key.ID, []string{"stats:read", "frontends:read"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.Scopes) != 2 {
+		t.Fatalf("scopes: %+v", updated.Scopes)
+	}
+	looked, err = s.LookupAPIKey(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(looked.Scopes) != 2 {
+		t.Fatalf("lookup scopes after update: %+v", looked.Scopes)
+	}
 }
 
 func TestChangePassword(t *testing.T) {

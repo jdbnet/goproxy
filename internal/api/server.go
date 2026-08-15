@@ -87,6 +87,7 @@ func (s *Server) Handler() http.Handler {
 	prot.HandleFunc("DELETE /api/v1/users/{id}", auth.Require("users:write", s.deleteUser))
 	prot.HandleFunc("GET /api/v1/apikeys", auth.Require("apikeys:read", s.listKeys))
 	prot.HandleFunc("POST /api/v1/apikeys", auth.Require("apikeys:write", s.createKey))
+	prot.HandleFunc("PUT /api/v1/apikeys/{id}", auth.Require("apikeys:write", s.updateKey))
 	prot.HandleFunc("DELETE /api/v1/apikeys/{id}", auth.Require("apikeys:write", s.deleteKey))
 	prot.HandleFunc("GET /api/v1/audit", auth.Require("audit:read", s.listAudit))
 	prot.HandleFunc("GET /api/v1/stats", auth.Require("stats:read", s.stats))

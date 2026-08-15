@@ -396,6 +396,14 @@ components:
           type: array
           items: { type: string }
           example: [frontends:read, backends:read, acls:read, stats:read]
+    APIKeyUpdate:
+      type: object
+      required: [scopes]
+      properties:
+        scopes:
+          type: array
+          items: { type: string }
+          example: [frontends:read, stats:read]
     APIKeyCreated:
       type: object
       properties:
@@ -1097,6 +1105,24 @@ paths:
               schema: { $ref: '#/components/schemas/APIKeyCreated' }
         '400': { $ref: '#/components/responses/Error' }
   /apikeys/{id}:
+    put:
+      tags: [API keys]
+      summary: Update API key scopes
+      description: Changes take effect on the next request using the key. The token itself is unchanged.
+      parameters:
+        - $ref: '#/components/parameters/NumericID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/APIKeyUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/APIKey' }
+        '400': { $ref: '#/components/responses/Error' }
     delete:
       tags: [API keys]
       summary: Delete API key
