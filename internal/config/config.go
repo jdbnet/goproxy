@@ -3,7 +3,9 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"net/mail"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -142,6 +144,54 @@ func Load(path string) (*Config, error) {
 	}
 	applyEnv(cfg)
 	return cfg, nil
+}
+
+func Save(path string, cfg *Config) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
+func ValidateACMEEmail(email string) error {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return nil
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		return fmt.Errorf("invalid acme_email")
+	}
+	return nil
+}
+
+func ValidateGit(git GitConfig) error {
+	if !git.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(git.URL) == "" {
+		return fmt.Errorf("git url is required when git sync is enabled")
+	}
+	switch strings.ToLower(strings.TrimSpace(git.Auth)) {
+	case "token":
+		if strings.TrimSpace(git.Token) == "" {
+			return fmt.Errorf("git token is required for token auth")
+		}
+	case "ssh", "":
+		if strings.TrimSpace(git.KeyPath) == "" {
+			return fmt.Errorf("git key_path is required for ssh auth")
+		}
+	default:
+		return fmt.Errorf("git auth must be ssh or token")
+	}
+	return nil
 }
 
 func applyEnv(cfg *Config) {

@@ -539,10 +539,34 @@ components:
         git_enabled: { type: boolean, example: false }
         git_url: { type: string }
         git_branch: { type: string, example: main }
+        git:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            url: { type: string }
+            branch: { type: string, example: main }
+            auth: { type: string, enum: [ssh, token] }
+            key_path: { type: string }
+            token_set: { type: boolean, description: True when a token is stored (value is never returned) }
         update:
           type: object
           properties:
             enabled: { type: boolean, example: true }
+    SettingsUpdate:
+      type: object
+      required: [git]
+      properties:
+        acme_email: { type: string, example: admin@example.com }
+        git:
+          type: object
+          required: [enabled]
+          properties:
+            enabled: { type: boolean }
+            url: { type: string, example: git@github.com:org/goproxy-config.git }
+            branch: { type: string, example: main }
+            auth: { type: string, enum: [ssh, token], example: ssh }
+            key_path: { type: string, example: /etc/goproxy/deploy_key }
+            token: { type: string, description: Required when auth is token and no token is stored yet. Omit or leave blank to keep the existing token. }
     GitSync:
       type: object
       properties:
@@ -1197,6 +1221,30 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Settings' }
+    put:
+      tags: [Config]
+      summary: Update app settings
+      description: Updates acme_email and Git sync settings in config.yaml. Other fields are read-only here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettingsUpdate' }
+            example:
+              acme_email: admin@example.com
+              git:
+                enabled: true
+                url: git@github.com:org/goproxy-config.git
+                branch: main
+                auth: ssh
+                key_path: /etc/goproxy/deploy_key
+      responses:
+        '200':
+          description: Saved settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+        '400': { $ref: '#/components/responses/Error' }
   /notifications:
     get:
       tags: [Notifications]

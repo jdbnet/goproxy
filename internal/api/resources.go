@@ -3,8 +3,10 @@ package api
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"git.jdbnet.co.uk/jamie/goproxy/internal/auth"
+	"git.jdbnet.co.uk/jamie/goproxy/internal/config"
 	"git.jdbnet.co.uk/jamie/goproxy/internal/notify"
 	"git.jdbnet.co.uk/jamie/goproxy/internal/proxyconfig"
 	"git.jdbnet.co.uk/jamie/goproxy/internal/tlsx"
@@ -558,7 +560,11 @@ func (s *Server) runBackup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
+	writeJSON(w, http.StatusOK, s.settingsView())
+}
+
+func (s *Server) settingsView() map[string]any {
+	return map[string]any{
 		"listen":         s.app.Listen,
 		"log_level":      s.app.LogLevel,
 		"data_dir":       s.app.DataDir,
@@ -568,11 +574,86 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		"git_enabled":    s.app.Git.Enabled,
 		"git_url":        s.app.Git.URL,
 		"git_branch":     s.app.Git.Branch,
-		"backup":         s.app.Backup,
-		"tls":            s.app.TLS,
-		"update":         s.app.Update,
-		"version":        s.version,
-	})
+		"git": map[string]any{
+			"enabled":   s.app.Git.Enabled,
+			"url":       s.app.Git.URL,
+			"branch":    s.app.Git.Branch,
+			"auth":      s.app.Git.Auth,
+			"key_path":  s.app.Git.KeyPath,
+			"token_set": s.app.Git.Token != "",
+		},
+		"backup":  s.app.Backup,
+		"tls":     s.app.TLS,
+		"update":  s.app.Update,
+		"version": s.version,
+	}
+}
+
+func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ACMEEmail string `json:"acme_email"`
+		Git       struct {
+			Enabled bool   `json:"enabled"`
+			URL     string `json:"url"`
+			Branch  string `json:"branch"`
+			Auth    string `json:"auth"`
+			KeyPath string `json:"key_path"`
+			Token   string `json:"token"`
+		} `json:"git"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	s.settingsMu.Lock()
+	defer s.settingsMu.Unlock()
+
+	before := s.settingsView()
+	email := strings.TrimSpace(req.ACMEEmail)
+	if err := config.ValidateACMEEmail(email); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	git := s.app.Git
+	git.Enabled = req.Git.Enabled
+	git.URL = strings.TrimSpace(req.Git.URL)
+	git.Branch = strings.TrimSpace(req.Git.Branch)
+	if git.Branch == "" {
+		git.Branch = "main"
+	}
+	git.Auth = strings.TrimSpace(req.Git.Auth)
+	if git.Auth == "" {
+		git.Auth = "ssh"
+	}
+	git.KeyPath = strings.TrimSpace(req.Git.KeyPath)
+	if token := strings.TrimSpace(req.Git.Token); token != "" {
+		git.Token = token
+	}
+	if err := config.ValidateGit(git); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if s.git != nil {
+		if err := s.git.Reconfigure(git); err != nil {
+			writeErr(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
+	s.app.ACMEEmail = email
+	s.app.Git = git
+	if s.configPath == "" {
+		writeErr(w, http.StatusInternalServerError, "config path not set")
+		return
+	}
+	if err := config.Save(s.configPath, s.app); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if a := s.actor(r); s.audit != nil {
+		_ = s.audit.Record(a.Type, a.ID, "settings.update", "config.yaml", before, s.settingsView())
+	}
+	writeJSON(w, http.StatusOK, s.settingsView())
 }
 
 func (s *Server) listHooks(w http.ResponseWriter, r *http.Request) {

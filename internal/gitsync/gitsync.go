@@ -34,6 +34,20 @@ func New(app *config.Config) (*Sync, error) {
 	return s, nil
 }
 
+func (s *Sync) Reconfigure(cfg config.GitConfig) error {
+	s.cfg = cfg
+	if !s.Enabled() {
+		s.auth = nil
+		return nil
+	}
+	auth, err := s.authMethod()
+	if err != nil {
+		return err
+	}
+	s.auth = auth
+	return nil
+}
+
 func (s *Sync) Enabled() bool { return s.cfg.Enabled && s.cfg.URL != "" }
 
 func (s *Sync) authMethod() (transport.AuthMethod, error) {

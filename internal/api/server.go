@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+	"sync"
 
 	"git.jdbnet.co.uk/jamie/goproxy/docs"
 	"git.jdbnet.co.uk/jamie/goproxy/internal/audit"
@@ -23,23 +24,25 @@ import (
 )
 
 type Server struct {
-	app      *config.Config
-	auth     *auth.Service
-	audit    *audit.Log
-	cfg      *ConfigService
-	engine   *proxy.Engine
-	certs    *tlsx.Store
-	metrics  *metrics.Metrics
-	backup   *backup.Manager
-	git      *gitsync.Sync
-	notify   *notify.Notifier
-	hasUsers bool
-	version  string
+	app        *config.Config
+	configPath string
+	auth       *auth.Service
+	audit      *audit.Log
+	cfg        *ConfigService
+	engine     *proxy.Engine
+	certs      *tlsx.Store
+	metrics    *metrics.Metrics
+	backup     *backup.Manager
+	git        *gitsync.Sync
+	notify     *notify.Notifier
+	hasUsers   bool
+	version    string
+	settingsMu sync.Mutex
 }
 
-func New(app *config.Config, authSvc *auth.Service, al *audit.Log, cfg *ConfigService, engine *proxy.Engine, certs *tlsx.Store, m *metrics.Metrics, b *backup.Manager, git *gitsync.Sync, n *notify.Notifier, hasUsers bool, version string) *Server {
+func New(app *config.Config, configPath string, authSvc *auth.Service, al *audit.Log, cfg *ConfigService, engine *proxy.Engine, certs *tlsx.Store, m *metrics.Metrics, b *backup.Manager, git *gitsync.Sync, n *notify.Notifier, hasUsers bool, version string) *Server {
 	return &Server{
-		app: app, auth: authSvc, audit: al, cfg: cfg, engine: engine, certs: certs,
+		app: app, configPath: configPath, auth: authSvc, audit: al, cfg: cfg, engine: engine, certs: certs,
 		metrics: m, backup: b, git: git, notify: n, hasUsers: hasUsers, version: version,
 	}
 }
@@ -94,6 +97,7 @@ func (s *Server) Handler() http.Handler {
 	prot.HandleFunc("POST /api/v1/config/sync", auth.Require("settings:write", s.syncConfig))
 	prot.HandleFunc("POST /api/v1/backup", auth.Require("settings:write", s.runBackup))
 	prot.HandleFunc("GET /api/v1/settings", auth.Require("settings:read", s.getSettings))
+	prot.HandleFunc("PUT /api/v1/settings", auth.Require("settings:write", s.putSettings))
 	prot.HandleFunc("GET /api/v1/notifications", auth.Require("settings:read", s.listHooks))
 	prot.HandleFunc("PUT /api/v1/notifications", auth.Require("settings:write", s.putHooks))
 	prot.HandleFunc("POST /api/v1/notifications/test", auth.Require("settings:write", s.testHook))

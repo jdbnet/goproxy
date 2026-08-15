@@ -24,12 +24,47 @@ const FORMATS = [
 ]
 
 const settings = ref({})
+const settingsForm = ref(emptySettingsForm())
+const settingsSaving = ref(false)
+const settingsError = ref('')
+const settingsMsg = ref('')
 const hooks = ref([])
 const form = ref(emptyForm())
 const editing = ref(false)
 const error = ref('')
 const msg = ref('')
 const testing = ref('')
+
+function emptySettingsForm() {
+  return {
+    acme_email: '',
+    git: {
+      enabled: false,
+      url: '',
+      branch: 'main',
+      auth: 'ssh',
+      key_path: '',
+      token: '',
+      token_set: false,
+    },
+  }
+}
+
+function settingsFormFrom(data) {
+  const git = data.git || {}
+  return {
+    acme_email: data.acme_email || '',
+    git: {
+      enabled: git.enabled ?? data.git_enabled ?? false,
+      url: git.url || data.git_url || '',
+      branch: git.branch || data.git_branch || 'main',
+      auth: git.auth || 'ssh',
+      key_path: git.key_path || '',
+      token: '',
+      token_set: !!git.token_set,
+    },
+  }
+}
 
 function emptyForm() {
   return {
@@ -65,7 +100,34 @@ function payloadFromForm() {
 async function load() {
   const [s, h] = await Promise.all([api.get('/settings'), api.get('/notifications')])
   settings.value = s.data
+  settingsForm.value = settingsFormFrom(s.data)
   hooks.value = h.data || []
+}
+
+async function saveSettings() {
+  settingsError.value = ''
+  settingsMsg.value = ''
+  settingsSaving.value = true
+  try {
+    const { data } = await api.put('/settings', {
+      acme_email: settingsForm.value.acme_email.trim(),
+      git: {
+        enabled: settingsForm.value.git.enabled,
+        url: settingsForm.value.git.url.trim(),
+        branch: settingsForm.value.git.branch.trim() || 'main',
+        auth: settingsForm.value.git.auth,
+        key_path: settingsForm.value.git.key_path.trim(),
+        token: settingsForm.value.git.token.trim(),
+      },
+    })
+    settings.value = data
+    settingsForm.value = settingsFormFrom(data)
+    settingsMsg.value = 'Settings saved to config.yaml'
+  } catch (e) {
+    settingsError.value = e.response?.data?.error || e.message
+  } finally {
+    settingsSaving.value = false
+  }
 }
 
 async function save() {
@@ -213,19 +275,89 @@ onMounted(load)
     </div>
     <p v-if="error" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">{{ error }}</p>
     <p v-if="msg" class="rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent">{{ msg }}</p>
+    <p v-if="settingsError" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">{{ settingsError }}</p>
+    <p v-if="settingsMsg" class="rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent">{{ settingsMsg }}</p>
+
     <div class="card text-sm space-y-1">
       <div>Listen: {{ settings.listen }}</div>
       <div>Log level: {{ settings.log_level || 'info' }}</div>
       <div>Data dir: {{ settings.data_dir }}</div>
       <div>Proxy config: {{ settings.proxy_config }}</div>
-      <div>ACME email: {{ settings.acme_email || '(not set)' }}</div>
-      <div>Git: {{ settings.git_enabled ? settings.git_url : 'disabled' }}</div>
       <div>Auto update: {{ settings.update?.enabled ? 'on' : 'off' }}</div>
     </div>
-    <div class="flex gap-2">
-      <button class="btn-secondary" type="button" @click="syncGit">Pull Git</button>
-      <button class="btn-secondary" type="button" @click="backupNow">Backup state.db</button>
-    </div>
+
+    <form class="card space-y-4" @submit.prevent="saveSettings">
+      <div>
+        <h2 class="text-sm font-medium text-heading">Let's Encrypt</h2>
+        <p class="mt-1 text-sm text-muted">Required before GoProxy can request ACME certificates.</p>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm text-muted">ACME email</label>
+        <input v-model="settingsForm.acme_email" class="input-field" type="email" placeholder="admin@example.com" autocomplete="email" />
+      </div>
+
+      <div>
+        <h2 class="text-sm font-medium text-heading">Git sync</h2>
+        <p class="mt-1 text-sm text-muted">
+          Pulls proxy.yaml from a Git remote on startup and after dashboard changes.
+          Commit your live config to Git before enabling sync.
+        </p>
+      </div>
+      <label class="flex items-center gap-2 text-sm">
+        <input v-model="settingsForm.git.enabled" type="checkbox" />
+        <span>Enable Git sync</span>
+      </label>
+      <template v-if="settingsForm.git.enabled">
+        <div class="grid gap-3 md:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-sm text-muted">Repository URL</label>
+            <input v-model="settingsForm.git.url" class="input-field" placeholder="git@github.com:org/goproxy-config.git" required />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-muted">Branch</label>
+            <input v-model="settingsForm.git.branch" class="input-field" placeholder="main" />
+          </div>
+        </div>
+        <div>
+          <label class="mb-2 block text-sm text-muted">Authentication</label>
+          <div class="grid gap-2 md:grid-cols-2">
+            <label class="card cursor-pointer !p-3" :class="settingsForm.git.auth === 'ssh' ? 'ring-1 ring-accent' : ''">
+              <input v-model="settingsForm.git.auth" type="radio" value="ssh" class="mr-2" />
+              <span class="font-medium">SSH deploy key</span>
+              <p class="mt-1 text-xs text-muted">Uses a private key file on this host.</p>
+            </label>
+            <label class="card cursor-pointer !p-3" :class="settingsForm.git.auth === 'token' ? 'ring-1 ring-accent' : ''">
+              <input v-model="settingsForm.git.auth" type="radio" value="token" class="mr-2" />
+              <span class="font-medium">HTTPS token</span>
+              <p class="mt-1 text-xs text-muted">Personal access token or deploy token over HTTPS.</p>
+            </label>
+          </div>
+        </div>
+        <div v-if="settingsForm.git.auth === 'ssh'">
+          <label class="mb-1 block text-sm text-muted">SSH key path</label>
+          <input v-model="settingsForm.git.key_path" class="input-field font-mono text-xs" placeholder="/etc/goproxy/deploy_key" required />
+        </div>
+        <div v-else>
+          <label class="mb-1 block text-sm text-muted">Git token</label>
+          <input
+            v-model="settingsForm.git.token"
+            class="input-field"
+            type="password"
+            autocomplete="off"
+            :placeholder="settingsForm.git.token_set ? 'leave blank to keep existing token' : 'paste token'"
+            :required="!settingsForm.git.token_set"
+          />
+        </div>
+      </template>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn-primary" type="submit" :disabled="settingsSaving">
+          {{ settingsSaving ? 'Saving…' : 'Save settings' }}
+        </button>
+        <button class="btn-secondary" type="button" :disabled="settingsSaving" @click="syncGit">Pull Git</button>
+        <button class="btn-secondary" type="button" :disabled="settingsSaving" @click="backupNow">Backup state.db</button>
+      </div>
+    </form>
+
     <ChangePasswordForm />
 
     <form class="card space-y-4" @submit.prevent="save">
