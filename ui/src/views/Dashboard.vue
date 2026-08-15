@@ -21,6 +21,24 @@ const rows = computed(() => [...status.value].sort((a, b) => {
   if (an !== bn) return an.localeCompare(bn)
   return (a.target || '').localeCompare(b.target || '')
 }))
+const errorRateHistory = computed(() => history.value.map((p) => ({
+  error_rate: p.requests ? (p.errors / p.requests) * 100 : 0,
+})))
+
+function errorRate(stats) {
+  const requests = Number(stats?.requests) || 0
+  const errors = Number(stats?.errors) || 0
+  if (!requests) return null
+  return (errors / requests) * 100
+}
+
+function formatErrorRate(stats) {
+  const rate = errorRate(stats)
+  if (rate == null) return '—'
+  if (rate === 0) return '0%'
+  return rate < 10 ? `${rate.toFixed(1)}%` : `${Math.round(rate)}%`
+}
+
 let timer
 
 async function refresh() {
@@ -120,6 +138,12 @@ onUnmounted(() => clearInterval(timer))
       <div class="card">
         <div class="text-xs text-muted">Backends up</div>
         <div class="mt-1 text-2xl font-semibold">{{ live.backends_healthy ?? 0 }}/{{ live.backends_total ?? 0 }}</div>
+      </div>
+      <div class="card">
+        <div class="text-xs text-muted">Error rate</div>
+        <div class="mt-1 text-2xl font-semibold">{{ formatErrorRate(live) }}</div>
+        <p class="mt-1 text-xs text-muted">{{ live.errors ?? 0 }} of {{ live.requests ?? 0 }} requests this window</p>
+        <Sparkline class="mt-2" :points="errorRateHistory" field="error_rate" />
       </div>
     </div>
     <div class="card">
