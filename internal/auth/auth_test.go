@@ -6,6 +6,42 @@ import (
 	"git.jdbnet.co.uk/jamie/goproxy/internal/store"
 )
 
+func TestBootstrapDefaultAdmin(t *testing.T) {
+	db, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	s := New(db.SQL)
+	username, created, err := s.BootstrapAdmin("", "")
+	if err != nil || !created || username != DefaultAdminUser {
+		t.Fatalf("bootstrap: created=%v username=%q err=%v", created, username, err)
+	}
+	if _, err := s.Authenticate(DefaultAdminUser, DefaultAdminPassword); err != nil {
+		t.Fatalf("default login: %v", err)
+	}
+	_, created, err = s.BootstrapAdmin("", "")
+	if err != nil || created {
+		t.Fatalf("second bootstrap: created=%v err=%v", created, err)
+	}
+}
+
+func TestBootstrapAdminEnvOverride(t *testing.T) {
+	db, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	s := New(db.SQL)
+	username, created, err := s.BootstrapAdmin("root", "s3cret")
+	if err != nil || !created || username != "root" {
+		t.Fatalf("bootstrap: created=%v username=%q err=%v", created, username, err)
+	}
+	if _, err := s.Authenticate("root", "s3cret"); err != nil {
+		t.Fatalf("env login: %v", err)
+	}
+}
+
 func TestUserAndAPIKey(t *testing.T) {
 	db, err := store.Open(t.TempDir())
 	if err != nil {

@@ -17,6 +17,11 @@ import (
 
 const cookieName = "goproxy_session"
 
+const (
+	DefaultAdminUser     = "admin"
+	DefaultAdminPassword = "changeme"
+)
+
 type Role string
 
 const (
@@ -152,19 +157,22 @@ func New(db *sql.DB) *Service {
 	return &Service{db: db}
 }
 
-func (s *Service) BootstrapAdmin(username, password string) error {
-	if username == "" || password == "" {
-		return nil
-	}
+func (s *Service) BootstrapAdmin(envUser, envPass string) (username string, created bool, err error) {
 	var n int
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n); err != nil {
-		return err
+		return "", false, err
 	}
 	if n > 0 {
-		return nil
+		return "", false, nil
 	}
-	_, err := s.CreateUser(username, password, RoleAdmin)
-	return err
+	username, password := DefaultAdminUser, DefaultAdminPassword
+	if envUser != "" && envPass != "" {
+		username, password = envUser, envPass
+	}
+	if _, err := s.CreateUser(username, password, RoleAdmin); err != nil {
+		return "", false, err
+	}
+	return username, true, nil
 }
 
 func (s *Service) CreateUser(username, password string, role Role) (*User, error) {

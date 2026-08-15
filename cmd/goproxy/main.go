@@ -78,9 +78,13 @@ func main() {
 	defer db.Close()
 
 	authSvc := auth.New(db.SQL)
-	if err := authSvc.BootstrapAdmin(os.Getenv("GOPROXY_ADMIN_USER"), os.Getenv("GOPROXY_ADMIN_PASSWORD")); err != nil {
+	username, created, err := authSvc.BootstrapAdmin(os.Getenv("GOPROXY_ADMIN_USER"), os.Getenv("GOPROXY_ADMIN_PASSWORD"))
+	if err != nil {
 		slog.Error("bootstrap admin", "err", err)
 		os.Exit(1)
+	}
+	if created {
+		slog.Warn("created admin account; change the password after first login", "username", username)
 	}
 	hasUsers, err := auth.HasUsers(db.SQL)
 	if err != nil {

@@ -29,7 +29,15 @@ curl -fsSL https://git.jdbnet.co.uk/jamie/goproxy/raw/branch/main/deploy/install
 
 The dashboard is **not** your public website. It is the admin UI, default `http://127.0.0.1:8080`.
 
-On first start, create the admin account:
+On first start, if no users exist yet, GoProxy creates an admin account:
+
+| Username | Password |
+| --- | --- |
+| `admin` | `changeme` |
+
+Sign in and change the password under **Users** before exposing the management port.
+
+To use different credentials on first boot only, set both environment variables before starting:
 
 ```bash
 sudo GOPROXY_ADMIN_USER=admin GOPROXY_ADMIN_PASSWORD='pick-a-strong-password' /usr/local/bin/goproxy /etc/goproxy/config.yaml
@@ -51,7 +59,7 @@ Environment=GOPROXY_ADMIN_PASSWORD=pick-a-strong-password
 sudo systemctl restart goproxy
 ```
 
-Then open `http://127.0.0.1:8080` (SSH tunnel if the box is remote). After the account exists you can remove the password from the unit if you want; it is only used to bootstrap.
+Then open `http://127.0.0.1:8080` (SSH tunnel if the box is remote). The env vars are only used when the user database is empty; remove them from the unit after the account exists if you want.
 
 Set `acme_email` in `/etc/goproxy/config.yaml` before you request Let's Encrypt certificates.
 

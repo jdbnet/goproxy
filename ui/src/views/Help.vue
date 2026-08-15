@@ -12,8 +12,11 @@ import { RouterLink } from 'vue-router'
     <section class="card space-y-2">
       <h2 class="font-medium">1. First boot</h2>
       <p class="text-sm text-muted">
-        Set <code class="text-heading">GOPROXY_ADMIN_USER</code> and
-        <code class="text-heading">GOPROXY_ADMIN_PASSWORD</code> on the first start to create the admin account.
+        On first start, if no users exist yet, GoProxy creates <code class="text-heading">admin</code> /
+        <code class="text-heading">changeme</code>. Sign in and change the password under
+        <RouterLink to="/users" class="text-accent">Users</RouterLink>.
+        Optionally set both <code class="text-heading">GOPROXY_ADMIN_USER</code> and
+        <code class="text-heading">GOPROXY_ADMIN_PASSWORD</code> before the first start to use different credentials.
         The management UI listens on the address in <code class="text-heading">config.yaml</code> (default
         <code class="text-heading">127.0.0.1:8080</code>). That port is only for the dashboard and API. Proxy traffic uses frontends.
       </p>
