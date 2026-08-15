@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { Pencil, Trash2 } from '@lucide/vue'
+import { Copy, Pencil, Trash2 } from '@lucide/vue'
 
 import api from '@/api/client'
 import { confirm } from '@/lib/confirm'
@@ -132,9 +132,8 @@ async function askRemove(b) {
   await load()
 }
 
-function edit(b) {
-  editing.value = true
-  form.value = {
+function backendToForm(b) {
+  return {
     id: b.id,
     name: b.name || '',
     algorithm: b.algorithm,
@@ -143,6 +142,23 @@ function edit(b) {
     health_type: b.health?.type || 'none',
     health_path: b.health?.path || '/healthz',
   }
+}
+
+function edit(b) {
+  editing.value = true
+  form.value = backendToForm(b)
+}
+
+function duplicate(b) {
+  editing.value = false
+  const base = backendToForm(b)
+  const label = base.name || firstTarget(b) || b.id
+  form.value = {
+    ...base,
+    id: '',
+    name: `${label} copy`,
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function reset() {
@@ -244,6 +260,10 @@ onMounted(load)
             <td class="whitespace-nowrap text-muted" :title="trafficTitle(stats.backends?.[b.id])">{{ trafficLabel(stats.backends?.[b.id]) }}</td>
             <td class="text-right">
               <div class="flex justify-end gap-1.5">
+                <button class="btn-row btn-row-copy" type="button" @click="duplicate(b)">
+                  <Copy class="h-3.5 w-3.5" />
+                  Duplicate
+                </button>
                 <button class="btn-row btn-row-edit" type="button" @click="edit(b)">
                   <Pencil class="h-3.5 w-3.5" />
                   Edit

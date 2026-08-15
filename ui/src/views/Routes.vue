@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { Pencil, Trash2 } from '@lucide/vue'
+import { Copy, Pencil, Trash2 } from '@lucide/vue'
 
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import api from '@/api/client'
@@ -287,11 +287,9 @@ async function askRemove(a) {
   await load()
 }
 
-function edit(a) {
-  editing.value = true
-  advanced.value = hasAdvancedFields(a)
+function aclToForm(a) {
   const m = a.middleware || {}
-  form.value = {
+  return {
     id: a.id,
     name: a.name || '',
     frontend: a.frontend,
@@ -313,6 +311,24 @@ function edit(a) {
     response_headers_add: formatHeaders(m.response_headers_add),
     response_headers_remove: (m.response_headers_remove || []).join('\n'),
   }
+}
+
+function edit(a) {
+  editing.value = true
+  advanced.value = hasAdvancedFields(a)
+  form.value = aclToForm(a)
+}
+
+function duplicate(a) {
+  editing.value = false
+  advanced.value = hasAdvancedFields(a)
+  const base = aclToForm(a)
+  form.value = {
+    ...base,
+    id: '',
+    name: base.name ? `${base.name} copy` : '',
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function reset() {
@@ -572,6 +588,10 @@ onMounted(load)
             <td class="whitespace-nowrap text-muted" :title="trafficTitle(stats.routes?.[a.id])">{{ trafficLabel(stats.routes?.[a.id]) }}</td>
             <td class="text-right">
               <div class="flex justify-end gap-1.5">
+                <button class="btn-row btn-row-copy" type="button" @click="duplicate(a)">
+                  <Copy class="h-3.5 w-3.5" />
+                  Duplicate
+                </button>
                 <button class="btn-row btn-row-edit" type="button" @click="edit(a)">
                   <Pencil class="h-3.5 w-3.5" />
                   Edit
