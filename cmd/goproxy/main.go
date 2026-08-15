@@ -94,7 +94,7 @@ func main() {
 	pools := lb.NewRegistry()
 	hc := health.New(pools, n)
 	certs := tlsx.NewStore(app, n, m)
-	eng := proxy.New(certs, pools, hc, m, n)
+	eng := proxy.New(app, certs, pools, hc, m, n)
 
 	git, err := gitsync.New(app)
 	if err != nil {

@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"git.jdbnet.co.uk/jamie/goproxy/internal/config"
 	"git.jdbnet.co.uk/jamie/goproxy/internal/health"
 	"git.jdbnet.co.uk/jamie/goproxy/internal/lb"
 	"git.jdbnet.co.uk/jamie/goproxy/internal/metrics"
@@ -28,6 +29,7 @@ import (
 )
 
 type Engine struct {
+	app     *config.Config
 	pools   *lb.Registry
 	health  *health.Checker
 	certs   *tlsx.Store
@@ -94,8 +96,9 @@ func (q *connQueue) push(c net.Conn) {
 	}
 }
 
-func New(certs *tlsx.Store, pools *lb.Registry, h *health.Checker, m *metrics.Metrics, n *notify.Notifier) *Engine {
+func New(app *config.Config, certs *tlsx.Store, pools *lb.Registry, h *health.Checker, m *metrics.Metrics, n *notify.Notifier) *Engine {
 	return &Engine{
+		app:       app,
 		pools:     pools,
 		health:    h,
 		certs:     certs,
@@ -315,12 +318,10 @@ func (e *Engine) passthrough(acl *proxyconfig.ACL, client net.Conn) {
 	_ = up.Close()
 	<-errc
 	e.metrics.ObserveRequest(dial, 200, inB.Load(), outB.Load(), e.requestScope(acl, srv))
-	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
-		slog.Debug("request",
-			"type", "access", "mode", "passthrough", "acl", acl.ID, "sni", acl.Match.Host,
-			"backend", srv.Target(), "duration_ms", time.Since(start).Milliseconds(),
-		)
-	}
+	e.logAccess(
+		"type", "access", "mode", "passthrough", "acl", acl.ID, "sni", acl.Match.Host,
+		"backend", srv.Target(), "duration_ms", time.Since(start).Milliseconds(),
+	)
 }
 
 func (e *Engine) serveHTTP(f *frontend, w http.ResponseWriter, r *http.Request) {
@@ -428,14 +429,12 @@ func (e *Engine) reverseProxy(acl *proxyconfig.ACL) http.Handler {
 			lat = time.Since(start)
 		}
 		e.metrics.ObserveRequest(lat, rec.status, body.n, rec.bytes, e.requestScope(acl, srv))
-		if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
-			slog.Debug("request",
-				"type", "access", "mode", "terminate", "acl", acl.ID, "host", r.Host,
-				"path", r.URL.Path, "status", rec.status, "backend", srv.Target(),
-				"latency_ms", lat.Milliseconds(),
-				"duration_ms", time.Since(start).Milliseconds(),
-			)
-		}
+		e.logAccess(
+			"type", "access", "mode", "terminate", "acl", acl.ID, "host", r.Host,
+			"path", r.URL.Path, "status", rec.status, "backend", srv.Target(),
+			"latency_ms", lat.Milliseconds(),
+			"duration_ms", time.Since(start).Milliseconds(),
+		)
 		if rec.status >= 500 {
 			e.maybeErrorRate()
 		}
@@ -638,6 +637,16 @@ func (e *Engine) requestScope(acl *proxyconfig.ACL, srv *lb.Server) metrics.Requ
 		}
 	}
 	return sc
+}
+
+func (e *Engine) logAccess(attrs ...any) {
+	if e.app != nil && e.app.LogRequests {
+		slog.Info("request", attrs...)
+		return
+	}
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		slog.Debug("request", attrs...)
+	}
 }
 
 func (e *Engine) RefreshMetrics() {

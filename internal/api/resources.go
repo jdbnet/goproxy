@@ -567,6 +567,7 @@ func (s *Server) settingsView() map[string]any {
 	return map[string]any{
 		"listen":         s.app.Listen,
 		"log_level":      s.app.LogLevel,
+		"log_requests":   s.app.LogRequests,
 		"data_dir":       s.app.DataDir,
 		"proxy_config":   s.app.ProxyConfig,
 		"acme_email":     s.app.ACMEEmail,
@@ -591,8 +592,9 @@ func (s *Server) settingsView() map[string]any {
 
 func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ACMEEmail string `json:"acme_email"`
-		Git       struct {
+		ACMEEmail   string `json:"acme_email"`
+		LogRequests *bool  `json:"log_requests"`
+		Git         struct {
 			Enabled bool   `json:"enabled"`
 			URL     string `json:"url"`
 			Branch  string `json:"branch"`
@@ -641,6 +643,9 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.app.ACMEEmail = email
+	if req.LogRequests != nil {
+		s.app.LogRequests = *req.LogRequests
+	}
 	s.app.Git = git
 	if s.configPath == "" {
 		writeErr(w, http.StatusInternalServerError, "config path not set")

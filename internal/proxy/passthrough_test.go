@@ -46,7 +46,7 @@ func TestPassthrough(t *testing.T) {
 	pools := lb.NewRegistry()
 	hc := health.New(pools, n)
 	certs := tlsx.NewStore(app, n, m)
-	eng := New(certs, pools, hc, m, n)
+	eng := New(app, certs, pools, hc, m, n)
 
 	feLn, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

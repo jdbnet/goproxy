@@ -23,6 +23,22 @@ func TestParseLogLevel(t *testing.T) {
 	}
 }
 
+func TestAccessLogsEnabled(t *testing.T) {
+	cfg := defaultConfig()
+	if cfg.AccessLogsEnabled() {
+		t.Fatal("expected access logs off by default")
+	}
+	cfg.LogRequests = true
+	if !cfg.AccessLogsEnabled() {
+		t.Fatal("expected access logs when log_requests is true")
+	}
+	cfg.LogRequests = false
+	cfg.LogLevel = "debug"
+	if !cfg.AccessLogsEnabled() {
+		t.Fatal("expected access logs when log_level is debug")
+	}
+}
+
 func TestValidateACMEEmail(t *testing.T) {
 	if err := ValidateACMEEmail(""); err != nil {
 		t.Fatal(err)

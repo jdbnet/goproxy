@@ -532,6 +532,7 @@ components:
         version: { type: string, example: 1.0.0 }
         listen: { type: string, example: 127.0.0.1:8080 }
         log_level: { type: string, example: info }
+        log_requests: { type: boolean, example: false, description: When true, emit per-request access logs at info level }
         data_dir: { type: string, example: /var/lib/goproxy }
         proxy_config: { type: string, example: /etc/goproxy/proxy.yaml }
         acme_email: { type: string }
@@ -557,6 +558,7 @@ components:
       required: [git]
       properties:
         acme_email: { type: string, example: admin@example.com }
+        log_requests: { type: boolean, example: false }
         git:
           type: object
           required: [enabled]
@@ -1232,6 +1234,7 @@ paths:
             schema: { $ref: '#/components/schemas/SettingsUpdate' }
             example:
               acme_email: admin@example.com
+              log_requests: false
               git:
                 enabled: true
                 url: git@github.com:org/goproxy-config.git

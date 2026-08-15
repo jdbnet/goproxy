@@ -24,6 +24,7 @@ type Config struct {
 	TLS           TLSConfig    `yaml:"tls"`
 	Update        UpdateConfig `yaml:"update"`
 	LogLevel      string       `yaml:"log_level"`
+	LogRequests   bool         `yaml:"log_requests"`
 }
 
 type UpdateConfig struct {
@@ -114,6 +115,13 @@ func defaultConfig() *Config {
 
 func (c *Config) SlogLevel() slog.Level {
 	return ParseLogLevel(c.LogLevel)
+}
+
+func (c *Config) AccessLogsEnabled() bool {
+	if c == nil {
+		return false
+	}
+	return c.LogRequests || c.SlogLevel() == slog.LevelDebug
 }
 
 func ParseLogLevel(s string) slog.Level {

@@ -29,7 +29,7 @@ func TestL7Proxy(t *testing.T) {
 	pools := lb.NewRegistry()
 	hc := health.New(pools, n)
 	certs := tlsx.NewStore(app, n, m)
-	eng := New(certs, pools, hc, m, n)
+	eng := New(app, certs, pools, hc, m, n)
 
 	ln := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	ln.Close()

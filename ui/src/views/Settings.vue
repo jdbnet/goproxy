@@ -38,6 +38,7 @@ const testing = ref('')
 function emptySettingsForm() {
   return {
     acme_email: '',
+    log_requests: false,
     git: {
       enabled: false,
       url: '',
@@ -54,6 +55,7 @@ function settingsFormFrom(data) {
   const git = data.git || {}
   return {
     acme_email: data.acme_email || '',
+    log_requests: !!data.log_requests,
     git: {
       enabled: git.enabled ?? data.git_enabled ?? false,
       url: git.url || data.git_url || '',
@@ -111,6 +113,7 @@ async function saveSettings() {
   try {
     const { data } = await api.put('/settings', {
       acme_email: settingsForm.value.acme_email.trim(),
+      log_requests: settingsForm.value.log_requests,
       git: {
         enabled: settingsForm.value.git.enabled,
         url: settingsForm.value.git.url.trim(),
@@ -284,9 +287,22 @@ onMounted(load)
       <div>Data dir: {{ settings.data_dir }}</div>
       <div>Proxy config: {{ settings.proxy_config }}</div>
       <div>Auto update: {{ settings.update?.enabled ? 'on' : 'off' }}</div>
+      <div>Request logging: {{ settings.log_requests ? 'on' : 'off' }}</div>
     </div>
 
     <form class="card space-y-4" @submit.prevent="saveSettings">
+      <div>
+        <h2 class="text-sm font-medium text-heading">Logging</h2>
+        <p class="mt-1 text-sm text-muted">Turn on per-request access logs while debugging a route. Logs appear at info level without changing log_level.</p>
+      </div>
+      <label class="flex items-start gap-2 text-sm">
+        <input v-model="settingsForm.log_requests" type="checkbox" class="mt-0.5" />
+        <span>
+          <span class="font-medium text-heading">Log requests</span>
+          <span class="mt-0.5 block text-muted">Writes one JSON line per proxied request with host, path, status, backend, and timing. Turn off again on busy sites.</span>
+        </span>
+      </label>
+
       <div>
         <h2 class="text-sm font-medium text-heading">Let's Encrypt</h2>
         <p class="mt-1 text-sm text-muted">Required before GoProxy can request ACME certificates.</p>
