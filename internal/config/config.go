@@ -82,7 +82,7 @@ func (d Duration) MarshalYAML() (any, error) {
 
 func defaultConfig() *Config {
 	return &Config{
-		Listen:        "127.0.0.1:8080",
+		Listen:        "0.0.0.0:8080",
 		DataDir:       "/var/lib/goproxy",
 		ProxyConfig:   "/etc/goproxy/proxy.yaml",
 		ACMEDirectory: "https://acme-v02.api.letsencrypt.org/directory",

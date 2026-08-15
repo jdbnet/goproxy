@@ -9,72 +9,29 @@ Think Nginx Proxy Manager for day-to-day use, with HAProxy-style routing when yo
 
 </div>
 
-## Install
+## Getting started
 
-On a Linux host (amd64 or arm64):
-
-```bash
-curl -fsSL https://apps.jdbnet.co.uk/goproxy-amd64 -o /tmp/goproxy
-# or goproxy-arm64 on ARM
-sudo install -m 755 /tmp/goproxy /usr/local/bin/goproxy
-```
-
-Or let the install script drop in systemd, `/etc/goproxy`, and `/var/lib/goproxy`:
+On a Linux server (amd64 or arm64):
 
 ```bash
 curl -fsSL https://git.jdbnet.co.uk/jamie/goproxy/raw/branch/main/deploy/install.sh | sudo bash
 ```
 
-## First login
+That installs the binary, systemd service, `/etc/goproxy`, and `/var/lib/goproxy`, then starts GoProxy.
 
-The dashboard is **not** your public website. It is the admin UI, default `http://127.0.0.1:8080`.
-
-On first start, if no users exist yet, GoProxy creates an admin account:
+Open the dashboard at `http://<your-server>:8080`. The dashboard is the admin UI, not your public website.
 
 | Username | Password |
 | --- | --- |
 | `admin` | `changeme` |
 
-Sign in and change the password under **Users** before exposing the management port.
-
-To use different credentials on first boot only, set both environment variables before starting:
-
-```bash
-sudo GOPROXY_ADMIN_USER=admin GOPROXY_ADMIN_PASSWORD='pick-a-strong-password' /usr/local/bin/goproxy /etc/goproxy/config.yaml
-```
-
-If you installed the systemd unit, put those two variables in a drop-in and restart:
-
-```bash
-sudo systemctl edit goproxy
-```
-
-```ini
-[Service]
-Environment=GOPROXY_ADMIN_USER=admin
-Environment=GOPROXY_ADMIN_PASSWORD=pick-a-strong-password
-```
-
-```bash
-sudo systemctl restart goproxy
-```
-
-Then open `http://127.0.0.1:8080` (SSH tunnel if the box is remote). The env vars are only used when the user database is empty; remove them from the unit after the account exists if you want.
-
-Set `acme_email` in `/etc/goproxy/config.yaml` before you request Let's Encrypt certificates.
+Change the password under **Users**.
 
 ## Add a site
 
-Do this in the UI. You do not need to edit YAML by hand.
+Click **Add site** in the sidebar. The wizard walks you through the domain, backend, certificate, and listener. You can create new ones or reuse what you already have.
 
-1. **Frontends**: add `0.0.0.0:80` (HTTP) and `0.0.0.0:443` with HTTPS.
-2. **Backends**: add your app, one URL per line, for example `http://127.0.0.1:3000`.
-3. **Certificates**: issue a cert for the hostname (HTTP-01 needs the port 80 listener; DNS-01 is for wildcards).
-4. **Routes**: domain, Forward, HTTPS (decrypt), the 443 listener, that backend, and the certificate.
-
-Force HTTPS, apex-to-www redirects, IP allow lists, and basic auth are options on the route. TLS passthrough is for apps that terminate TLS themselves; those backends use `host:port` instead of `http://`.
-
-Unmatched hosts can use the frontend default: close, redirect, or forward.
+Point DNS at the server, set the ACME email in **Settings** if you are using Let's Encrypt, and you are done. For TLS passthrough, redirects, IP allow lists, and basic auth, use the individual **Routes** and **Frontends** pages.
 
 ## What the dashboard shows
 
@@ -115,7 +72,7 @@ git:
 
 ## Auto update
 
-Installed releases check `https://apps.jdbnet.co.uk/goproxy-amd64` (or `goproxy-arm64`) on startup. If the published checksum differs, the binary replaces itself and restarts. A failed check is logged and the current binary keeps running.
+Installed releases check for a newer binary on startup. If the published checksum differs, GoProxy replaces itself and restarts. A failed check is logged and the current binary keeps running.
 
 Turn it off in `/etc/goproxy/config.yaml`:
 
@@ -126,11 +83,4 @@ update:
 
 Or set `GOPROXY_NO_UPDATE=1`. Dev builds (`version` is `dev`) do not self-update unless `update.allow_dev` is true.
 
-## From source
-
-Only needed if you are changing the code. The release binary already includes the UI.
-
-```bash
-./build.sh
-./goproxy config.yaml
-```
+[MIT](LICENSE)

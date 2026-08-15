@@ -40,7 +40,7 @@ mkdir -p "$CONFIG_DIR" "$DATA_DIR"
 
 if [[ ! -f "${CONFIG_DIR}/config.yaml" ]]; then
   cat > "${CONFIG_DIR}/config.yaml" <<EOF
-listen: 127.0.0.1:8080
+listen: 0.0.0.0:8080
 log_level: info
 data_dir: ${DATA_DIR}
 proxy_config: ${CONFIG_DIR}/proxy.yaml
@@ -108,5 +108,5 @@ systemctl enable "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
 
 echo "GoProxy installed from ${url}"
-echo "Web UI: http://127.0.0.1:8080 (edit ${CONFIG_DIR}/config.yaml)"
+echo "Web UI: http://<server-ip>:8080 (edit ${CONFIG_DIR}/config.yaml)"
 echo "Status: systemctl status ${SERVICE_NAME}"

@@ -15,14 +15,11 @@ import { RouterLink } from 'vue-router'
         On first start, if no users exist yet, GoProxy creates <code class="text-heading">admin</code> /
         <code class="text-heading">changeme</code>. Sign in and change the password under
         <RouterLink to="/users" class="text-accent">Users</RouterLink>.
-        Optionally set both <code class="text-heading">GOPROXY_ADMIN_USER</code> and
-        <code class="text-heading">GOPROXY_ADMIN_PASSWORD</code> before the first start to use different credentials.
         The management UI listens on the address in <code class="text-heading">config.yaml</code> (default
-        <code class="text-heading">127.0.0.1:8080</code>). That port is only for the dashboard and API. Proxy traffic uses frontends.
+        <code class="text-heading">0.0.0.0:8080</code>). That port is only for the dashboard and API. Proxy traffic uses frontends.
       </p>
       <p class="text-sm text-muted">
         If <code class="text-heading">proxy.yaml</code> is missing, GoProxy creates the directory and an empty file.
-        Set <code class="text-heading">acme_email</code> in <code class="text-heading">config.yaml</code> before requesting Let's Encrypt certificates.
         <code class="text-heading">log_level</code> defaults to <code class="text-heading">info</code>. Per-request access logs only appear at <code class="text-heading">debug</code>.
       </p>
     </section>
