@@ -11,12 +11,14 @@ import APIKeys from '@/views/APIKeys.vue'
 import Audit from '@/views/Audit.vue'
 import Settings from '@/views/Settings.vue'
 import Help from '@/views/Help.vue'
+import AddSite from '@/views/AddSite.vue'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'login', component: Login, meta: { public: true } },
     { path: '/', name: 'dashboard', component: Dashboard },
+    { path: '/add-site', name: 'add-site', component: AddSite },
     { path: '/frontends', name: 'frontends', component: Frontends },
     { path: '/routes', name: 'routes', component: Routes },
     { path: '/backends', name: 'backends', component: Backends },

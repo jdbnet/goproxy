@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
-  Menu, X, LayoutDashboard, Radio, Route, Server, Shield, Users, KeyRound, ScrollText, Settings, CircleHelp, LogOut, Sun, Moon,
+  Menu, X, LayoutDashboard, PlusCircle, Radio, Route, Server, Shield, Users, KeyRound, ScrollText, Settings, CircleHelp, LogOut, Sun, Moon,
 } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -15,6 +15,7 @@ const sidebarOpen = ref(false)
 
 const nav = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, match: (p) => p === '/' },
+  { to: '/add-site', label: 'Add site', icon: PlusCircle, match: (p) => p.startsWith('/add-site') },
   { to: '/frontends', label: 'Frontends', icon: Radio, match: (p) => p.startsWith('/frontends') },
   { to: '/routes', label: 'Routes', icon: Route, match: (p) => p.startsWith('/routes') },
   { to: '/backends', label: 'Backends', icon: Server, match: (p) => p.startsWith('/backends') },

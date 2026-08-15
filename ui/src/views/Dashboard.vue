@@ -46,12 +46,15 @@ onUnmounted(() => clearInterval(timer))
 
 <template>
   <div class="space-y-4">
-    <div>
-      <h1 class="text-xl font-semibold">Overview</h1>
-      <p class="mt-1 text-sm text-muted">
-        Up {{ formatUptime(live.uptime_seconds) }}
-        <span v-if="limitation"> · {{ limitation }}</span>
-      </p>
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h1 class="text-xl font-semibold">Overview</h1>
+        <p class="mt-1 text-sm text-muted">
+          Up {{ formatUptime(live.uptime_seconds) }}
+          <span v-if="limitation"> · {{ limitation }}</span>
+        </p>
+      </div>
+      <RouterLink to="/add-site" class="btn-primary shrink-0">Add site</RouterLink>
     </div>
 
     <div
