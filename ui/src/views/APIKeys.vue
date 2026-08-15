@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { Trash2 } from '@lucide/vue'
 import api from '@/api/client'
+import { confirm } from '@/lib/confirm'
 
 const items = ref([])
 const form = ref({ name: '', scopes: 'stats:read,frontends:read,backends:read,acls:read' })
@@ -29,8 +30,12 @@ async function save() {
   }
 }
 
-async function remove(id) {
-  await api.delete(`/apikeys/${id}`)
+async function askRemove(k) {
+  if (!await confirm({
+    title: 'Delete API key?',
+    message: `Revoke "${k.name}"? Scripts using this key will stop working immediately.`,
+  })) return
+  await api.delete(`/apikeys/${k.id}`)
   await load()
 }
 
@@ -60,7 +65,7 @@ onMounted(load)
             <td>{{ k.prefix }}</td>
             <td>{{ (k.scopes || []).join(', ') }}</td>
             <td class="text-right">
-              <button class="btn-row btn-row-danger" type="button" @click="remove(k.id)">
+              <button class="btn-row btn-row-danger" type="button" @click="askRemove(k)">
                 <Trash2 class="h-3.5 w-3.5" />
                 Delete
               </button>

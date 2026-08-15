@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { AlertTriangle, FileUp, LoaderCircle, Pencil, RefreshCw, Trash2, X } from '@lucide/vue'
 import { certID } from '@/lib/ids'
 import { certDisplayName, expiryBadge, filterExpiringCerts, sortByExpiry } from '@/lib/certs'
+import { confirm } from '@/lib/confirm'
 import api from '@/api/client'
 
 const items = ref([])
@@ -157,8 +158,13 @@ async function renew(id) {
   await withJob(id, () => api.post(`/certificates/${id}/renew`))
 }
 
-async function remove(id) {
-  await api.delete(`/certificates/${id}`)
+async function askRemove(c) {
+  const label = certDisplayName(c)
+  if (!await confirm({
+    title: 'Delete certificate?',
+    message: `Remove "${label}"? HTTPS for matching domains will fail until a new certificate is configured.`,
+  })) return
+  await api.delete(`/certificates/${c.id}`)
   await load()
 }
 
@@ -385,7 +391,7 @@ function expiryClass(daysLeft) {
                   <Pencil class="h-3.5 w-3.5" />
                   Edit
                 </button>
-                <button class="btn-row btn-row-danger" type="button" @click="remove(c.id)">
+                <button class="btn-row btn-row-danger" type="button" @click="askRemove(c)">
                   <Trash2 class="h-3.5 w-3.5" />
                   Delete
                 </button>

@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from '@lucide/vue'
 
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import api from '@/api/client'
+import { confirm } from '@/lib/confirm'
 import { trafficLabel, trafficTitle } from '@/lib/bytes'
 
 const items = ref([])
@@ -108,8 +109,13 @@ async function save() {
   }
 }
 
-async function remove(id) {
-  await api.delete(`/frontends/${id}`)
+async function askRemove(fe) {
+  const label = fe.name || fe.bind || fe.id
+  if (!await confirm({
+    title: 'Delete frontend?',
+    message: `Remove "${label}"? Routes bound to this listener will stop working.`,
+  })) return
+  await api.delete(`/frontends/${fe.id}`)
   await load()
 }
 
@@ -243,7 +249,7 @@ onMounted(load)
                   <Pencil class="h-3.5 w-3.5" />
                   Edit
                 </button>
-                <button class="btn-row btn-row-danger" type="button" @click="remove(fe.id)">
+                <button class="btn-row btn-row-danger" type="button" @click="askRemove(fe)">
                   <Trash2 class="h-3.5 w-3.5" />
                   Delete
                 </button>

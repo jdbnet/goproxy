@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { Pencil, Trash2 } from '@lucide/vue'
 
 import api from '@/api/client'
+import { confirm } from '@/lib/confirm'
 import { trafficLabel, trafficTitle } from '@/lib/bytes'
 
 const items = ref([])
@@ -121,8 +122,13 @@ async function save() {
   }
 }
 
-async function remove(id) {
-  await api.delete(`/backends/${id}`)
+async function askRemove(b) {
+  const label = b.name || firstTarget(b) || b.id
+  if (!await confirm({
+    title: 'Delete backend?',
+    message: `Remove "${label}"? Routes using this backend will need to be updated.`,
+  })) return
+  await api.delete(`/backends/${b.id}`)
   await load()
 }
 
@@ -242,7 +248,7 @@ onMounted(load)
                   <Pencil class="h-3.5 w-3.5" />
                   Edit
                 </button>
-                <button class="btn-row btn-row-danger" type="button" @click="remove(b.id)">
+                <button class="btn-row btn-row-danger" type="button" @click="askRemove(b)">
                   <Trash2 class="h-3.5 w-3.5" />
                   Delete
                 </button>

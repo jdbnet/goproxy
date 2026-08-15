@@ -6,6 +6,7 @@ import {
 } from '@lucide/vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -94,5 +95,6 @@ async function logout() {
         <slot />
       </main>
     </div>
+    <ConfirmDialog />
   </div>
 </template>

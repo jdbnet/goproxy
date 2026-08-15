@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { Trash2 } from '@lucide/vue'
 import api from '@/api/client'
+import { confirm } from '@/lib/confirm'
 
 const items = ref([])
 const form = ref({ username: '', password: '', role: 'viewer' })
@@ -23,8 +24,12 @@ async function save() {
   }
 }
 
-async function remove(id) {
-  await api.delete(`/users/${id}`)
+async function askRemove(u) {
+  if (!await confirm({
+    title: 'Delete user?',
+    message: `Remove "${u.username}"? They will no longer be able to sign in.`,
+  })) return
+  await api.delete(`/users/${u.id}`)
   await load()
 }
 
@@ -58,7 +63,7 @@ onMounted(load)
             <td>{{ u.role }}</td>
             <td>{{ u.created_at }}</td>
             <td class="text-right">
-              <button class="btn-row btn-row-danger" type="button" @click="remove(u.id)">
+              <button class="btn-row btn-row-danger" type="button" @click="askRemove(u)">
                 <Trash2 class="h-3.5 w-3.5" />
                 Delete
               </button>

@@ -93,6 +93,9 @@
   html.dark .btn-row-danger {
     @apply bg-red-900/40 text-red-300 hover:bg-red-900/70;
   }
+  .btn-danger {
+    @apply inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50;
+  }
   .card {
     @apply rounded-xl border p-4;
     border-color: var(--color-border-default);

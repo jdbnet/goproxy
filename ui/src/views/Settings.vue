@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { Pencil, Send, Trash2 } from '@lucide/vue'
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue'
 import api from '@/api/client'
+import { confirm } from '@/lib/confirm'
 
 const TRIGGERS = [
   { id: 'backend.up', label: 'Backend up', detail: 'A server passed health checks again and is back in rotation.' },
@@ -92,14 +93,19 @@ async function save() {
   }
 }
 
-async function remove(id) {
+async function askRemove(h) {
+  const label = h.url || h.id
+  if (!await confirm({
+    title: 'Delete webhook?',
+    message: `Remove notifications to "${label}"?`,
+  })) return
   error.value = ''
   msg.value = ''
-  const list = hooks.value.filter((h) => h.id !== id)
+  const list = hooks.value.filter((row) => row.id !== h.id)
   try {
     const { data } = await api.put('/notifications', list)
     hooks.value = data || list
-    if (form.value.id === id) reset()
+    if (form.value.id === h.id) reset()
     msg.value = 'Webhook removed'
   } catch (e) {
     error.value = e.response?.data?.error || e.message
@@ -320,7 +326,7 @@ onMounted(load)
                   <Pencil class="h-3.5 w-3.5" />
                   Edit
                 </button>
-                <button class="btn-row btn-row-danger" type="button" @click="remove(h.id)">
+                <button class="btn-row btn-row-danger" type="button" @click="askRemove(h)">
                   <Trash2 class="h-3.5 w-3.5" />
                   Delete
                 </button>

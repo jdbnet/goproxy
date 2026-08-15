@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from '@lucide/vue'
 
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import api from '@/api/client'
+import { confirm } from '@/lib/confirm'
 import { certificateCoversHost, findCertificateForHost, hostKey } from '@/lib/certs'
 import { trafficLabel, trafficTitle } from '@/lib/bytes'
 
@@ -276,8 +277,13 @@ async function save() {
   }
 }
 
-async function remove(id) {
-  await api.delete(`/acls/${id}`)
+async function askRemove(a) {
+  const label = a.name || a.match?.host || a.id
+  if (!await confirm({
+    title: 'Delete route?',
+    message: `Remove "${label}"? Traffic matching this route will no longer be proxied.`,
+  })) return
+  await api.delete(`/acls/${a.id}`)
   await load()
 }
 
@@ -570,7 +576,7 @@ onMounted(load)
                   <Pencil class="h-3.5 w-3.5" />
                   Edit
                 </button>
-                <button class="btn-row btn-row-danger" type="button" @click="remove(a.id)">
+                <button class="btn-row btn-row-danger" type="button" @click="askRemove(a)">
                   <Trash2 class="h-3.5 w-3.5" />
                   Delete
                 </button>
