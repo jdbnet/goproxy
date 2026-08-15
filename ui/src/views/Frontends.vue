@@ -212,8 +212,9 @@ onMounted(load)
         <button v-if="editing" class="btn-ghost" type="button" @click="reset">Cancel</button>
       </div>
     </form>
-    <div class="card overflow-x-auto">
-      <table class="w-full text-left text-sm">
+    <div class="card">
+      <div class="table-scroll">
+      <table class="data-table">
         <thead class="text-muted">
           <tr>
             <th class="pb-2">Name</th>
@@ -234,7 +235,7 @@ onMounted(load)
               </span>
               <span v-if="fe.tls?.hsts" class="ml-2 text-xs text-muted">HSTS</span>
             </td>
-            <td class="max-w-xs truncate text-muted" :title="defaultLabel(fe)">{{ defaultLabel(fe) }}</td>
+            <td class="text-muted" :title="defaultLabel(fe)">{{ defaultLabel(fe) }}</td>
             <td class="whitespace-nowrap text-muted" :title="trafficTitle(stats.frontends?.[fe.id])">{{ trafficLabel(stats.frontends?.[fe.id]) }}</td>
             <td class="text-right">
               <div class="flex justify-end gap-1.5">
@@ -254,6 +255,7 @@ onMounted(load)
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

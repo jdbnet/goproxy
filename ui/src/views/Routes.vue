@@ -537,8 +537,9 @@ onMounted(load)
         <button v-if="editing" class="btn-ghost" type="button" @click="reset">Cancel</button>
       </div>
     </form>
-    <div class="card overflow-x-auto">
-      <table class="w-full text-left text-sm">
+    <div class="card">
+      <div class="table-scroll">
+      <table class="data-table">
         <thead class="text-muted">
           <tr>
             <th class="pb-2">Name</th>
@@ -561,7 +562,7 @@ onMounted(load)
             <td class="text-muted">{{ a.match?.host }}</td>
             <td>{{ modeLabel(a) }}</td>
             <td>{{ frontendByID(a.frontend)?.name || frontendByID(a.frontend)?.bind || a.frontend }}</td>
-            <td class="max-w-xs truncate text-muted" :title="forwardLabel(a)">{{ forwardLabel(a) }}</td>
+            <td class="text-muted" :title="forwardLabel(a)">{{ forwardLabel(a) }}</td>
             <td class="whitespace-nowrap text-muted" :title="trafficTitle(stats.routes?.[a.id])">{{ trafficLabel(stats.routes?.[a.id]) }}</td>
             <td class="text-right">
               <div class="flex justify-end gap-1.5">
@@ -581,6 +582,7 @@ onMounted(load)
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

@@ -48,8 +48,9 @@ onMounted(load)
       </select>
       <button class="btn-primary" type="submit">Add user</button>
     </form>
-    <div class="card overflow-x-auto">
-      <table class="w-full text-left text-sm">
+    <div class="card">
+      <div class="table-scroll">
+      <table class="data-table">
         <thead class="text-muted"><tr><th class="pb-2">User</th><th>Role</th><th>Created</th><th></th></tr></thead>
         <tbody>
           <tr v-for="u in items" :key="u.id" class="table-row-hover">
@@ -65,6 +66,7 @@ onMounted(load)
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

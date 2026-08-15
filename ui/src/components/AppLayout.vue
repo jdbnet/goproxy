@@ -90,7 +90,7 @@ async function logout() {
         <button type="button" class="text-muted" @click="sidebarOpen = true"><Menu class="h-5 w-5" /></button>
         <span class="truncate font-semibold text-heading">{{ pageTitle }}</span>
       </header>
-      <main class="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 text-heading">
+      <main class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 text-heading">
         <slot />
       </main>
     </div>

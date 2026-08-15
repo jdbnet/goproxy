@@ -50,8 +50,9 @@ onMounted(load)
       <input v-model="form.scopes" class="input-field" placeholder="Scopes, comma separated" required />
       <button class="btn-primary" type="submit">Create key</button>
     </form>
-    <div class="card overflow-x-auto">
-      <table class="w-full text-left text-sm">
+    <div class="card">
+      <div class="table-scroll">
+      <table class="data-table">
         <thead class="text-muted"><tr><th class="pb-2">Name</th><th>Prefix</th><th>Scopes</th><th></th></tr></thead>
         <tbody>
           <tr v-for="k in items" :key="k.id" class="table-row-hover">
@@ -67,6 +68,7 @@ onMounted(load)
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

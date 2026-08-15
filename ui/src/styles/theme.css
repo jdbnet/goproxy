@@ -123,4 +123,21 @@
   .badge-error { @apply bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300; }
   .table-row-hover { border-top: 1px solid var(--color-border-default); }
   html.dark .table-row-hover { border-top-color: var(--color-border-muted-dark); }
+  .table-scroll {
+    @apply -mx-4 overflow-x-auto px-4;
+    max-width: calc(100% + 2rem);
+    -webkit-overflow-scrolling: touch;
+  }
+  .data-table {
+    @apply w-max min-w-full border-collapse text-left text-sm;
+  }
+  .data-table :is(th, td) {
+    @apply whitespace-nowrap pr-4 align-top last:pr-0;
+  }
+  .data-table thead th {
+    @apply pb-2;
+  }
+  .data-table tbody td {
+    @apply py-2;
+  }
 }

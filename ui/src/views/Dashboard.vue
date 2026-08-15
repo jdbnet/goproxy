@@ -85,9 +85,10 @@ onUnmounted(() => clearInterval(timer))
         <div class="mt-1 text-2xl font-semibold">{{ live.backends_healthy ?? 0 }}/{{ live.backends_total ?? 0 }}</div>
       </div>
     </div>
-    <div class="card overflow-x-auto">
+    <div class="card">
       <h2 class="mb-3 text-sm font-medium text-muted">Backend health</h2>
-      <table class="w-full text-left text-sm">
+      <div class="table-scroll">
+      <table class="data-table">
         <thead class="text-muted">
           <tr>
             <th class="pb-2">Backend</th>
@@ -121,6 +122,7 @@ onUnmounted(() => clearInterval(timer))
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

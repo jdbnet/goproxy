@@ -15,8 +15,9 @@ onMounted(load)
 <template>
   <div class="space-y-4">
     <h1 class="text-xl font-semibold">Audit</h1>
-    <div class="card overflow-x-auto">
-      <table class="w-full text-left text-sm">
+    <div class="card">
+      <div class="table-scroll">
+      <table class="data-table">
         <thead class="text-muted">
           <tr>
             <th class="pb-2">Time</th>
@@ -34,6 +35,7 @@ onMounted(load)
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

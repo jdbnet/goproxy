@@ -214,8 +214,9 @@ onMounted(load)
         <button v-if="editing" class="btn-ghost" type="button" @click="reset">Cancel</button>
       </div>
     </form>
-    <div class="card overflow-x-auto">
-      <table class="w-full text-left text-sm">
+    <div class="card">
+      <div class="table-scroll">
+      <table class="data-table">
         <thead class="text-muted">
           <tr>
             <th class="pb-2">Name</th>
@@ -230,7 +231,7 @@ onMounted(load)
         <tbody>
           <tr v-for="b in items" :key="b.id" class="table-row-hover">
             <td class="py-2 font-medium text-heading">{{ b.name || firstTarget(b) || b.id }}</td>
-            <td class="max-w-xs truncate text-muted" :title="destinationList(b)">{{ destinationList(b) }}</td>
+            <td class="text-muted" :title="destinationList(b)">{{ destinationList(b) }}</td>
             <td>{{ algorithmLabel(b.algorithm) }}</td>
             <td>{{ healthLabel(b) }}</td>
             <td>{{ roleCounts(b) }}</td>
@@ -253,6 +254,7 @@ onMounted(load)
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

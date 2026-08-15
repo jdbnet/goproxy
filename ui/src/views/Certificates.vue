@@ -319,8 +319,9 @@ function expiryClass(daysLeft) {
 </template></pre>
     </div>
 
-    <div class="card overflow-x-auto">
-      <table class="w-full text-left text-sm">
+    <div class="card">
+      <div class="table-scroll">
+      <table class="data-table">
         <thead class="text-muted">
           <tr>
             <th class="pb-2">Name</th>
@@ -361,6 +362,7 @@ function expiryClass(daysLeft) {
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>
