@@ -25,14 +25,6 @@ Or let the install script drop in systemd, `/etc/goproxy`, and `/var/lib/goproxy
 curl -fsSL https://git.jdbnet.co.uk/jamie/goproxy/raw/branch/main/deploy/install.sh | sudo bash
 ```
 
-Docker:
-
-```bash
-docker run --rm -p 8080:8080 cr.jdbnet.co.uk/public/goproxy
-```
-
-Publish 80 and 443 as well when you add real listeners.
-
 ## First login
 
 The dashboard is **not** your public website. It is the admin UI, default `http://127.0.0.1:8080`.
