@@ -67,55 +67,64 @@ func (c *Checker) Stop() {
 }
 
 func (c *Checker) loop(ctx context.Context, pool *lb.Pool, spec proxyconfig.HealthCheck, interval, timeout time.Duration) {
-	healthyNeed := spec.HealthyThreshold
-	unhealthyNeed := spec.UnhealthyThreshold
-	if healthyNeed <= 0 {
-		healthyNeed = 2
-	}
-	if unhealthyNeed <= 0 {
-		unhealthyNeed = 3
-	}
-	streak := make([]int, len(pool.Servers))
 	t := time.NewTicker(interval)
 	defer t.Stop()
-	c.probeAll(ctx, pool, spec, timeout, streak, healthyNeed, unhealthyNeed)
+	c.probeAll(ctx, pool, spec, timeout)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			c.probeAll(ctx, pool, spec, timeout, streak, healthyNeed, unhealthyNeed)
+			c.probeAll(ctx, pool, spec, timeout)
 		}
 	}
 }
 
-func (c *Checker) probeAll(ctx context.Context, pool *lb.Pool, spec proxyconfig.HealthCheck, timeout time.Duration, streak []int, healthyNeed, unhealthyNeed int) {
-	for i, srv := range pool.Servers {
+func (c *Checker) probeAll(ctx context.Context, pool *lb.Pool, spec proxyconfig.HealthCheck, timeout time.Duration) {
+	for _, srv := range pool.Servers {
 		ok := probe(ctx, srv, spec, timeout)
-		was := srv.Healthy.Load()
-		if ok {
-			if !was {
-				streak[i]++
-				if streak[i] >= healthyNeed {
-					srv.Healthy.Store(true)
-					streak[i] = 0
-					c.changed(pool.ID, srv, true)
-				}
-			} else {
-				streak[i] = 0
-			}
-		} else {
-			if was {
-				streak[i]++
-				if streak[i] >= unhealthyNeed {
-					srv.Healthy.Store(false)
-					streak[i] = 0
-					c.changed(pool.ID, srv, false)
-				}
-			} else {
-				streak[i] = 0
-			}
+		c.NoteOutcome(pool.ID, srv, ok)
+	}
+}
+
+// NoteOutcome records a probe or request result. Servers are only marked down or up
+// after consecutive failures or successes, matching the backend health thresholds.
+func (c *Checker) NoteOutcome(poolID string, srv *lb.Server, ok bool) {
+	if srv == nil || !srv.HealthEnabled {
+		return
+	}
+	healthyNeed := srv.HealthyThreshold
+	unhealthyNeed := srv.UnhealthyThreshold
+	if healthyNeed <= 0 {
+		healthyNeed = 2
+	}
+	if unhealthyNeed <= 0 {
+		unhealthyNeed = 5
+	}
+
+	was := srv.Healthy.Load()
+	if ok {
+		srv.FailStreak.Store(0)
+		if was {
+			srv.SuccessStreak.Store(0)
+			return
 		}
+		if srv.SuccessStreak.Add(1) >= int32(healthyNeed) {
+			srv.SuccessStreak.Store(0)
+			srv.Healthy.Store(true)
+			c.changed(poolID, srv, true)
+		}
+		return
+	}
+
+	srv.SuccessStreak.Store(0)
+	if !was {
+		return
+	}
+	if srv.FailStreak.Add(1) >= int32(unhealthyNeed) {
+		srv.FailStreak.Store(0)
+		srv.Healthy.Store(false)
+		c.changed(poolID, srv, false)
 	}
 }
 
@@ -200,11 +209,4 @@ func probeGRPC(ctx context.Context, srv *lb.Server) bool {
 	// gRPC health: TCP connect plus HTTP/2 preface is enough for v1 active check
 	// without pulling a gRPC client. A refused/timeout port is down.
 	return probeTCP(ctx, srv)
-}
-
-func MarkPassiveFailure(srv *lb.Server) {
-	if srv == nil || !srv.HealthEnabled {
-		return
-	}
-	srv.Healthy.Store(false)
 }

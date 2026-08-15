@@ -239,7 +239,7 @@ components:
         interval: { type: string, example: 5s }
         timeout: { type: string, example: 2s }
         healthy_threshold: { type: integer, example: 2 }
-        unhealthy_threshold: { type: integer, example: 3 }
+        unhealthy_threshold: { type: integer, example: 5 }
         expect_status: { type: integer, example: 200 }
         expect_body: { type: string }
     Backend:
@@ -267,7 +267,7 @@ components:
           interval: 5s
           timeout: 2s
           healthy_threshold: 2
-          unhealthy_threshold: 3
+          unhealthy_threshold: 5
     ServerStatus:
       type: object
       properties:

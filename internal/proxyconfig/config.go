@@ -283,7 +283,7 @@ func (c *Config) defaults() {
 				h.HealthyThreshold = 2
 			}
 			if h.UnhealthyThreshold <= 0 {
-				h.UnhealthyThreshold = 3
+				h.UnhealthyThreshold = 5
 			}
 			if h.Type == "" {
 				h.Type = "tcp"

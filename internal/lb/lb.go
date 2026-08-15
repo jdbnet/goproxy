@@ -18,7 +18,11 @@ type Server struct {
 	Role          string
 	Weight        int
 	HealthEnabled bool
+	HealthyThreshold   int
+	UnhealthyThreshold int
 	Healthy       atomic.Bool
+	FailStreak    atomic.Int32
+	SuccessStreak atomic.Int32
 	Conns         atomic.Int64
 	probeNs       atomic.Int64
 }
@@ -60,8 +64,13 @@ func NewRegistry() *Registry {
 }
 
 func (r *Registry) Replace(cfg *proxyconfig.Config) {
+	r.mu.RLock()
+	oldPools := r.pools
+	r.mu.RUnlock()
+
 	next := map[string]*Pool{}
 	for _, be := range cfg.Backends {
+		oldPool := oldPools[be.ID]
 		p := &Pool{ID: be.ID, Name: be.Name, Algorithm: be.Algorithm}
 		for i, s := range be.Servers {
 			srv := &Server{
@@ -76,8 +85,23 @@ func (r *Registry) Replace(cfg *proxyconfig.Config) {
 					srv.URL = u
 				}
 			}
-			srv.HealthEnabled = be.Health != nil
+			if be.Health != nil {
+				srv.HealthEnabled = true
+				srv.HealthyThreshold = be.Health.HealthyThreshold
+				srv.UnhealthyThreshold = be.Health.UnhealthyThreshold
+				if srv.HealthyThreshold <= 0 {
+					srv.HealthyThreshold = 2
+				}
+				if srv.UnhealthyThreshold <= 0 {
+					srv.UnhealthyThreshold = 5
+				}
+			}
 			srv.Healthy.Store(true)
+			if prev := matchServer(oldPool, srv); prev != nil && prev.HealthEnabled && srv.HealthEnabled {
+				srv.Healthy.Store(prev.Healthy.Load())
+				srv.FailStreak.Store(prev.FailStreak.Load())
+				srv.SuccessStreak.Store(prev.SuccessStreak.Load())
+			}
 			p.Servers = append(p.Servers, srv)
 		}
 		next[be.ID] = p
@@ -85,6 +109,19 @@ func (r *Registry) Replace(cfg *proxyconfig.Config) {
 	r.mu.Lock()
 	r.pools = next
 	r.mu.Unlock()
+}
+
+func matchServer(pool *Pool, srv *Server) *Server {
+	if pool == nil {
+		return nil
+	}
+	target := srv.Target()
+	for _, s := range pool.Servers {
+		if s.Target() == target && s.Role == srv.Role {
+			return s
+		}
+	}
+	return nil
 }
 
 func (r *Registry) Pool(id string) *Pool {

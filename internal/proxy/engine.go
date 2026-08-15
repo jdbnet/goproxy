@@ -296,7 +296,7 @@ func (e *Engine) passthrough(acl *proxyconfig.ACL, client net.Conn) {
 	up, err := net.DialTimeout("tcp", srv.Target(), 5*time.Second)
 	dial := time.Since(start)
 	if err != nil {
-		health.MarkPassiveFailure(srv)
+		e.health.NoteOutcome(acl.Backend, srv, false)
 		e.metrics.ObserveRequest(dial, 502, 0, 0, e.requestScope(acl, srv))
 		return
 	}
@@ -417,7 +417,7 @@ func (e *Engine) reverseProxy(acl *proxyconfig.ACL) http.Handler {
 				pr.Out.Header.Set("X-Forwarded-Port", forwardedPort(pr.In))
 			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-				health.MarkPassiveFailure(srv)
+				e.health.NoteOutcome(acl.Backend, srv, false)
 				slog.Warn("proxy error", "acl", acl.ID, "host", r.Host, "path", r.URL.Path, "backend", srv.Target(), "err", err)
 				http.Error(w, "bad gateway", http.StatusBadGateway)
 			},

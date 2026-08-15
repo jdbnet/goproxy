@@ -227,6 +227,9 @@ onMounted(load)
       <p v-if="form.health_type === 'none'" class="text-xs text-muted">
         Servers stay up even if a request fails. Use this for apps that have no health endpoint or that you never want taken out of rotation.
       </p>
+      <p v-else class="text-xs text-muted">
+        Servers are taken out of rotation after several consecutive failed checks or request errors, not on the first failure.
+      </p>
       <div v-if="form.health_type === 'http'">
         <label class="mb-1 block text-sm text-muted">Health path</label>
         <input v-model="form.health_path" class="input-field" placeholder="/healthz" />
