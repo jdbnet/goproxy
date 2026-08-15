@@ -20,6 +20,7 @@ backup:
 tls:
   renew_check: 24h
   renew_before: 720h
+  warn_before: 336h
   jitter: 1h
   retry_backoff: 15m
   retry_max: 8h

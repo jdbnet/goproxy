@@ -1,13 +1,19 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
+import { AlertTriangle } from '@lucide/vue'
 import api from '@/api/client'
 import Sparkline from '@/components/Sparkline.vue'
+import { certDisplayName, filterExpiringCerts } from '@/lib/certs'
 import { formatBytes, formatLatency, formatUptime, trafficLabel, trafficTitle } from '@/lib/bytes'
 
 const live = ref({})
 const history = ref([])
 const limitation = ref('')
 const status = ref([])
+const expiringCerts = ref([])
+const expiredCount = computed(() => expiringCerts.value.filter((c) => c.days_left < 0).length)
+const warningCount = computed(() => expiringCerts.value.length - expiredCount.value)
 const rows = computed(() => [...status.value].sort((a, b) => {
   if (!!a.healthy !== !!b.healthy) return a.healthy ? 1 : -1
   const an = (a.name || a.backend || '').toLowerCase()
@@ -18,15 +24,17 @@ const rows = computed(() => [...status.value].sort((a, b) => {
 let timer
 
 async function refresh() {
-  const [s, h, b] = await Promise.all([
+  const [s, h, b, certs] = await Promise.all([
     api.get('/stats'),
     api.get('/stats/history'),
     api.get('/backends/status').catch(() => ({ data: [] })),
+    api.get('/certificates').catch(() => ({ data: [] })),
   ])
   live.value = s.data
   history.value = h.data.history || []
   limitation.value = h.data.limitation || ''
   status.value = b.data || []
+  expiringCerts.value = filterExpiringCerts(certs.data || [])
 }
 
 onMounted(async () => {
@@ -45,6 +53,32 @@ onUnmounted(() => clearInterval(timer))
         <span v-if="limitation"> · {{ limitation }}</span>
       </p>
     </div>
+
+    <div
+      v-if="expiringCerts.length"
+      class="rounded-lg border px-4 py-3"
+      :class="expiredCount ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/40 bg-amber-500/10'"
+    >
+      <div class="flex gap-3">
+        <AlertTriangle class="mt-0.5 h-5 w-5 shrink-0" :class="expiredCount ? 'text-red-600 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'" />
+        <div class="min-w-0 space-y-2">
+          <p class="text-sm font-medium text-heading">
+            Certificate expiry
+            <template v-if="expiredCount"> · {{ expiredCount }} expired</template>
+            <template v-if="warningCount"> · {{ warningCount }} expiring soon</template>
+          </p>
+          <ul class="space-y-1 text-sm text-muted">
+            <li v-for="c in expiringCerts" :key="c.id">
+              <RouterLink to="/certificates" class="font-medium text-heading hover:text-accent">{{ certDisplayName(c) }}</RouterLink>
+              <span v-if="c.days_left < 0"> · expired {{ -c.days_left }} day{{ -c.days_left === 1 ? '' : 's' }} ago</span>
+              <span v-else-if="c.days_left === 0"> · expires today</span>
+              <span v-else> · {{ c.days_left }} day{{ c.days_left === 1 ? '' : 's' }} left</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <div class="grid gap-4 md:grid-cols-4">
       <div class="card">
         <div class="text-xs text-muted">Requests (window)</div>

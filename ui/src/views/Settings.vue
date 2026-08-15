@@ -9,6 +9,8 @@ const TRIGGERS = [
   { id: 'backend.down', label: 'Backend down', detail: 'A server failed consecutive health checks and was taken out of rotation.' },
   { id: 'cert.renew.success', label: 'Certificate renewed', detail: 'An ACME certificate was issued or renewed.' },
   { id: 'cert.renew.failure', label: 'Certificate renewal failed', detail: 'ACME could not renew a certificate. Check HTTP-01 or DNS.' },
+  { id: 'cert.expiry.warning', label: 'Certificate expiring soon', detail: 'A certificate will expire within 14 days (or your warn_before setting).' },
+  { id: 'cert.expiry.expired', label: 'Certificate expired', detail: 'A certificate has passed its not-after date.' },
   { id: 'git.conflict', label: 'Git sync failed', detail: 'A pull from the Git remote failed or could not be applied.' },
   { id: 'errors.high', label: 'High error rate', detail: 'More than 20% of recent requests returned 5xx, after at least 20 requests.' },
   { id: 'backup.failure', label: 'Backup failed', detail: 'A scheduled or manual state.db snapshot failed.' },

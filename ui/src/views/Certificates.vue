@@ -1,8 +1,9 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { FileUp, LoaderCircle, Pencil, RefreshCw, Trash2, X } from '@lucide/vue'
+import { AlertTriangle, FileUp, LoaderCircle, Pencil, RefreshCw, Trash2, X } from '@lucide/vue'
 import { certID } from '@/lib/ids'
+import { certDisplayName, expiryBadge, filterExpiringCerts, sortByExpiry } from '@/lib/certs'
 import api from '@/api/client'
 
 const items = ref([])
@@ -165,6 +166,10 @@ onMounted(load)
 onUnmounted(stopPoll)
 
 const jobRunning = computed(() => saving.value || job.value.status === 'running')
+const sortedItems = computed(() => sortByExpiry(items.value))
+const expiring = computed(() => filterExpiringCerts(items.value))
+const expiredCount = computed(() => expiring.value.filter((c) => c.days_left < 0).length)
+const warningCount = computed(() => expiring.value.length - expiredCount.value)
 
 function formatExpiry(iso, daysLeft) {
   const d = new Date(iso)
@@ -197,6 +202,29 @@ function expiryClass(daysLeft) {
     </div>
     <p v-if="error" class="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">{{ error }}</p>
     <p v-if="msg" class="text-sm text-accent">{{ msg }}</p>
+
+    <div
+      v-if="expiring.length"
+      class="rounded-lg border px-4 py-3"
+      :class="expiredCount ? 'border-red-500/40 bg-red-500/10' : 'border-amber-500/40 bg-amber-500/10'"
+    >
+      <div class="flex gap-3">
+        <AlertTriangle class="mt-0.5 h-5 w-5 shrink-0" :class="expiredCount ? 'text-red-600 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'" />
+        <div class="min-w-0 space-y-2">
+          <p class="text-sm font-medium text-heading">
+            <template v-if="expiredCount">{{ expiredCount }} certificate{{ expiredCount === 1 ? '' : 's' }} expired</template>
+            <template v-if="expiredCount && warningCount"> · </template>
+            <template v-if="warningCount">{{ warningCount }} expiring within 14 days</template>
+          </p>
+          <ul class="space-y-1 text-sm text-muted">
+            <li v-for="c in expiring" :key="c.id">
+              <span class="font-medium text-heading">{{ certDisplayName(c) }}</span>
+              <span :class="expiryClass(c.days_left)"> · {{ formatExpiry(c.expires_at, c.days_left) }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
 
     <form class="card space-y-4" @submit.prevent="save">
       <div class="grid gap-3 md:grid-cols-2">
@@ -332,8 +360,15 @@ function expiryClass(daysLeft) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="c in items" :key="c.id" class="table-row-hover">
-            <td class="py-2 font-medium text-heading">{{ c.name || (c.domains || []).join(', ') }}</td>
+          <tr v-for="c in sortedItems" :key="c.id" class="table-row-hover">
+            <td class="py-2 font-medium text-heading">
+              <div class="flex flex-wrap items-center gap-2">
+                <span>{{ certDisplayName(c) }}</span>
+                <span v-if="expiryBadge(c.days_left)" class="badge" :class="expiryBadge(c.days_left).class">
+                  {{ expiryBadge(c.days_left).label }}
+                </span>
+              </div>
+            </td>
             <td class="text-muted">{{ (c.domains || []).join(', ') }}</td>
             <td>{{ c.challenge === 'custom' ? 'Custom PEM' : c.challenge === 'dns-01' ? `Let's Encrypt (DNS${c.dns_provider ? `: ${c.dns_provider}` : ''})` : 'Let\'s Encrypt (HTTP)' }}</td>
             <td>

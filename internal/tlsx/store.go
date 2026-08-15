@@ -46,6 +46,9 @@ type Store struct {
 	bySNI  map[string]string
 	http01 sync.Map
 	cfg    *proxyconfig.Config
+
+	expiryMu    sync.Mutex
+	expiryAlert map[string]expiryAlertState
 }
 
 func NewStore(app *config.Config, n *notify.Notifier, m *metrics.Metrics) *Store {
@@ -58,8 +61,9 @@ func NewStore(app *config.Config, n *notify.Notifier, m *metrics.Metrics) *Store
 		metrics: m,
 		creds:   cs,
 		jobs:    newJobBook(),
-		certs:   map[string]*tls.Certificate{},
-		bySNI:   map[string]string{},
+		certs:       map[string]*tls.Certificate{},
+		bySNI:       map[string]string{},
+		expiryAlert: map[string]expiryAlertState{},
 	}
 }
 
@@ -155,6 +159,7 @@ func (s *Store) InstallCustom(id string, certPEM, keyPEM []byte) error {
 	s.mu.Lock()
 	s.certs[id] = &cert
 	s.mu.Unlock()
+	s.resetExpiryAlert(id)
 	return nil
 }
 
@@ -315,6 +320,7 @@ func (s *Store) Renew(id string) error {
 	s.mu.Lock()
 	s.certs[id] = cert
 	s.mu.Unlock()
+	s.resetExpiryAlert(id)
 	if s.notify != nil {
 		s.notify.Send(notify.Event{Type: "cert.renew.success", Title: "Certificate renewed", Body: id, Severity: "info"})
 	}
@@ -450,6 +456,7 @@ func (s *Store) StartRenewer(ctx context.Context) {
 		cfg := s.cfg
 		s.mu.RUnlock()
 		if cfg != nil {
+			s.checkExpiryWarnings()
 			for _, c := range cfg.Certificates {
 				if c.Challenge == "custom" {
 					continue

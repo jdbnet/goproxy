@@ -50,6 +50,7 @@ type BackupConfig struct {
 type TLSConfig struct {
 	RenewCheck   Duration `yaml:"renew_check"`
 	RenewBefore  Duration `yaml:"renew_before"`
+	WarnBefore   Duration `yaml:"warn_before"`
 	Jitter       Duration `yaml:"jitter"`
 	RetryBackoff Duration `yaml:"retry_backoff"`
 	RetryMax     Duration `yaml:"retry_max"`
@@ -97,6 +98,7 @@ func defaultConfig() *Config {
 		TLS: TLSConfig{
 			RenewCheck:   Duration{24 * time.Hour},
 			RenewBefore:  Duration{30 * 24 * time.Hour},
+			WarnBefore:   Duration{14 * 24 * time.Hour},
 			Jitter:       Duration{time.Hour},
 			RetryBackoff: Duration{15 * time.Minute},
 			RetryMax:     Duration{8 * time.Hour},

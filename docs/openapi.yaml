@@ -472,7 +472,8 @@ components:
           example: [backend.down, cert.renew.failure]
           description: >
             Empty means all events. Known types: backend.up, backend.down,
-            cert.renew.success, cert.renew.failure, git.conflict, errors.high,
+            cert.renew.success, cert.renew.failure, cert.expiry.warning,
+            cert.expiry.expired, git.conflict, errors.high,
             backup.failure. Prefixes like backend.* and * are allowed.
       example:
         url: https://hooks.example.com/goproxy
