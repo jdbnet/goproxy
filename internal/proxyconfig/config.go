@@ -248,6 +248,26 @@ func (c *Config) Clone() *Config {
 	return &out
 }
 
+// RemoveBackendReferences drops routes and frontend defaults that point at id.
+func (c *Config) RemoveBackendReferences(id string) {
+	for i := range c.Frontends {
+		if c.Frontends[i].Default == nil || c.Frontends[i].Default.Backend != id {
+			continue
+		}
+		c.Frontends[i].Default.Backend = ""
+		if !c.Frontends[i].HasDefault() {
+			c.Frontends[i].Default = nil
+		}
+	}
+	var acls []ACL
+	for _, acl := range c.ACLs {
+		if acl.Backend != id {
+			acls = append(acls, acl)
+		}
+	}
+	c.ACLs = acls
+}
+
 func (c *Config) defaults() {
 	for i := range c.Frontends {
 		if c.Frontends[i].Default != nil && !c.Frontends[i].HasDefault() {

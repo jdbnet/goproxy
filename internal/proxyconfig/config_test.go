@@ -173,3 +173,55 @@ func TestLoadOrCreate(t *testing.T) {
 		t.Fatalf("second load created=%v err=%v", created, err)
 	}
 }
+
+func TestRemoveBackendReferences(t *testing.T) {
+	cfg := &Config{
+		Frontends: []Frontend{{
+			ID:   "https",
+			Bind: "0.0.0.0:443",
+			TLS:  &FrontendTLS{Enabled: true},
+			Default: &FrontendDefault{Backend: "test-backend"},
+		}},
+		ACLs: []ACL{{
+			ID:       "route",
+			Frontend: "https",
+			Match:    Match{Host: "app.example.com"},
+			Mode:     "terminate",
+			Backend:  "test-backend",
+		}, {
+			ID:       "redirect",
+			Frontend: "https",
+			Match:    Match{Host: "other.example.com"},
+			Mode:     "terminate",
+			Middleware: &Middleware{RedirectURL: "https://example.com"},
+		}},
+		Backends: []Backend{{
+			ID:        "test-backend",
+			Algorithm: "round_robin",
+			Servers:   []BackendServer{{URL: "http://127.0.0.1:8080", Role: "primary"}},
+		}},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	cfg.Backends = nil
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validation error before references removed")
+	}
+	cfg.Backends = []Backend{{
+		ID:        "test-backend",
+		Algorithm: "round_robin",
+		Servers:   []BackendServer{{URL: "http://127.0.0.1:8080", Role: "primary"}},
+	}}
+	cfg.RemoveBackendReferences("test-backend")
+	cfg.Backends = nil
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate after cleanup: %v", err)
+	}
+	if len(cfg.ACLs) != 1 || cfg.ACLs[0].ID != "redirect" {
+		t.Fatalf("acls = %+v", cfg.ACLs)
+	}
+	if cfg.Frontends[0].Default != nil {
+		t.Fatalf("frontend default = %+v", cfg.Frontends[0].Default)
+	}
+}

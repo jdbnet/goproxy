@@ -173,9 +173,14 @@ func (s *Server) updateBackend(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) deleteBackend(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	prev, _ := findID(s.cfg.Current().Backends, id, func(b proxyconfig.Backend) string { return b.ID })
+	prev, ok := findID(s.cfg.Current().Backends, id, func(b proxyconfig.Backend) string { return b.ID })
+	if !ok {
+		writeErr(w, http.StatusNotFound, "backend not found")
+		return
+	}
 	err := s.cfg.Mutate(s.actor(r), "backend.delete", "backends/"+id, prev, nil, func(c *proxyconfig.Config) error {
 		c.Backends = removeByID(c.Backends, id, func(b proxyconfig.Backend) string { return b.ID })
+		c.RemoveBackendReferences(id)
 		return nil
 	})
 	if err != nil {

@@ -126,10 +126,14 @@ async function askRemove(b) {
   const label = b.name || firstTarget(b) || b.id
   if (!await confirm({
     title: 'Delete backend?',
-    message: `Remove "${label}"? Routes using this backend will need to be updated.`,
+    message: `Remove "${label}"? Routes using this backend will be deleted too.`,
   })) return
-  await api.delete(`/backends/${b.id}`)
-  await load()
+  try {
+    await api.delete(`/backends/${b.id}`)
+    await load()
+  } catch (e) {
+    error.value = e.response?.data?.error || e.message
+  }
 }
 
 function backendToForm(b) {
