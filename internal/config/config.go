@@ -22,15 +22,8 @@ type Config struct {
 	Git           GitConfig    `yaml:"git"`
 	Backup        BackupConfig `yaml:"backup"`
 	TLS           TLSConfig    `yaml:"tls"`
-	Update        UpdateConfig `yaml:"update"`
 	LogLevel      string       `yaml:"log_level"`
 	LogRequests   bool         `yaml:"log_requests"`
-}
-
-type UpdateConfig struct {
-	Enabled  bool   `yaml:"enabled"`
-	URL      string `yaml:"url"`
-	AllowDev bool   `yaml:"allow_dev"`
 }
 
 type GitConfig struct {
@@ -105,9 +98,6 @@ func defaultConfig() *Config {
 			Jitter:       Duration{time.Hour},
 			RetryBackoff: Duration{15 * time.Minute},
 			RetryMax:     Duration{8 * time.Hour},
-		},
-		Update: UpdateConfig{
-			Enabled: true,
 		},
 		LogLevel: "info",
 	}
@@ -235,12 +225,6 @@ func applyEnv(cfg *Config) {
 	}
 	if v := os.Getenv("GOPROXY_GIT_TOKEN"); v != "" {
 		cfg.Git.Token = v
-	}
-	if v := os.Getenv("GOPROXY_UPDATE_ENABLED"); v != "" {
-		cfg.Update.Enabled = parseBool(v)
-	}
-	if v := os.Getenv("GOPROXY_UPDATE_URL"); v != "" {
-		cfg.Update.URL = v
 	}
 	if v := os.Getenv("GOPROXY_LOG_LEVEL"); v != "" {
 		cfg.LogLevel = v

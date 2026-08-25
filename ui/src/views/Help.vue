@@ -92,7 +92,6 @@ import { RouterLink } from 'vue-router'
         <li>API keys use the same scopes as user roles. The dashboard talks to the same <code class="text-heading">/api/v1</code> API. Docs: <a class="text-accent" href="/api-docs">/api-docs</a>.</li>
         <li>If Git sync is enabled, proxy.yaml is pulled on start and pushed after dashboard changes. DNS tokens stay local.</li>
         <li>Overview graphs are a 1 hour in-memory buffer. Traffic totals and process uptime are since start. The Latency card is request time to first byte. Each backend row shows health-probe latency only. All of this resets on restart. Scrape <code class="text-heading">/metrics</code> with Prometheus for durable history.</li>
-        <li>Release builds check for a newer binary on startup and replace themselves when the published checksum changes. Disable with <code class="text-heading">update.enabled: false</code> in config.yaml or <code class="text-heading">GOPROXY_NO_UPDATE=1</code>.</li>
       </ul>
     </section>
   </div>

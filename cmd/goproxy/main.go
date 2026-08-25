@@ -25,7 +25,6 @@ import (
 	"git.jdbnet.co.uk/jamie/goproxy/internal/proxyconfig"
 	"git.jdbnet.co.uk/jamie/goproxy/internal/store"
 	"git.jdbnet.co.uk/jamie/goproxy/internal/tlsx"
-	"git.jdbnet.co.uk/jamie/goproxy/internal/update"
 )
 
 var Version = "dev"
@@ -52,22 +51,6 @@ func main() {
 	if err := os.MkdirAll(app.DataDir, 0o755); err != nil {
 		slog.Error("data_dir", "err", err)
 		os.Exit(1)
-	}
-
-	updCtx, updCancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	replaced, err := update.Check(updCtx, update.Config{
-		Enabled:  app.Update.Enabled,
-		URL:      app.Update.URL,
-		AllowDev: app.Update.AllowDev,
-	}, Version, app.DataDir)
-	updCancel()
-	if err != nil {
-		slog.Warn("update check failed, continuing", "err", err)
-	} else if replaced {
-		slog.Info("installed newer binary, restarting")
-		if err := update.Restart(); err != nil {
-			slog.Error("restart after update", "err", err)
-		}
 	}
 
 	db, err := store.Open(app.DataDir)

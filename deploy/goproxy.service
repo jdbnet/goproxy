@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/goproxy /etc/goproxy/config.yaml
+ExecStart=/usr/bin/goproxy /etc/goproxy/config.yaml
 Restart=on-failure
 RestartSec=5
 AmbientCapabilities=CAP_NET_BIND_SERVICE

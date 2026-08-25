@@ -557,10 +557,6 @@ components:
             auth: { type: string, enum: [ssh, token] }
             key_path: { type: string }
             token_set: { type: boolean, description: True when a token is stored (value is never returned) }
-        update:
-          type: object
-          properties:
-            enabled: { type: boolean, example: true }
     SettingsUpdate:
       type: object
       required: [git]

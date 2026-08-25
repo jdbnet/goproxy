@@ -286,7 +286,6 @@ onMounted(load)
       <div>Log level: {{ settings.log_level || 'info' }}</div>
       <div>Data dir: {{ settings.data_dir }}</div>
       <div>Proxy config: {{ settings.proxy_config }}</div>
-      <div>Auto update: {{ settings.update?.enabled ? 'on' : 'off' }}</div>
       <div>Request logging: {{ settings.log_requests ? 'on' : 'off' }}</div>
     </div>
 

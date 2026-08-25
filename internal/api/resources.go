@@ -603,7 +603,6 @@ func (s *Server) settingsView() map[string]any {
 		},
 		"backup":  s.app.Backup,
 		"tls":     s.app.TLS,
-		"update":  s.app.Update,
 		"version": s.version,
 	}
 }

@@ -11,13 +11,15 @@ Think Nginx Proxy Manager for day-to-day use, with HAProxy-style routing when yo
 
 ## Getting started
 
-On a Linux server (amd64 or arm64):
+On a Linux server (amd64 or arm64), install from your apt repository:
 
 ```bash
-curl -fsSL https://git.jdbnet.co.uk/jamie/goproxy/raw/branch/main/deploy/install.sh | sudo bash
+curl -fsSL https://apt.jdbnet.co.uk/install/stable.sh | sudo bash
+sudo apt update
+sudo apt install goproxy
 ```
 
-That installs the binary, systemd service, `/etc/goproxy`, and `/var/lib/goproxy`, then starts GoProxy.
+That installs the binary, systemd service, `/etc/goproxy`, and `/var/lib/goproxy`, then starts GoProxy. Upgrade with `apt upgrade` when a new package is published.
 
 Open the dashboard at `http://<your-server>:8080`. The dashboard is the admin UI, not your public website.
 
@@ -69,18 +71,5 @@ git:
 ```
 
 `auth: token` uses `token` over HTTPS. A failed pull keeps the local file and logs an error.
-
-## Auto update
-
-Installed releases check for a newer binary on startup. If the published checksum differs, GoProxy replaces itself and restarts. A failed check is logged and the current binary keeps running.
-
-Turn it off in `/etc/goproxy/config.yaml`:
-
-```yaml
-update:
-  enabled: false
-```
-
-Or set `GOPROXY_NO_UPDATE=1`. Dev builds (`version` is `dev`) do not self-update unless `update.allow_dev` is true.
 
 [MIT](LICENSE)

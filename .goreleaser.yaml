@@ -1,0 +1,66 @@
+version: 2
+
+project_name: goproxy
+
+before:
+  hooks:
+    - go mod tidy
+    - npm ci --prefix ui --no-audit --no-fund
+    - npm run build --prefix ui
+
+builds:
+  - id: goproxy
+    main: ./cmd/goproxy
+    binary: goproxy
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+
+archives:
+  - id: goproxy
+    formats:
+      - binary
+    name_template: "{{ .ProjectName }}-{{ .Arch }}"
+    ids:
+      - goproxy
+
+nfpms:
+  - id: goproxy
+    ids:
+      - goproxy
+    package_name: goproxy
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
+    vendor: JDB-NET
+    homepage: https://github.com/jdbnet/goproxy
+    maintainer: JDB-NET
+    description: Reverse proxy and load balancer with a web UI
+    license: MIT
+    formats:
+      - deb
+    bindir: /usr/bin
+    contents:
+      - src: deploy/goproxy.service
+        dst: /lib/systemd/system/goproxy.service
+      - src: deploy/debian/config.yaml
+        dst: /etc/goproxy/config.yaml
+        type: config|noreplace
+      - src: deploy/debian/proxy.yaml
+        dst: /etc/goproxy/proxy.yaml
+        type: config|noreplace
+    scripts:
+      postinstall: deploy/debian/postinstall.sh
+
+changelog:
+  disable: true
+
+release:
+  github:
+    owner: jdbnet
+    name: goproxy
