@@ -11,7 +11,7 @@ Think Nginx Proxy Manager for day-to-day use, with HAProxy-style routing when yo
 
 ## Getting started
 
-On a Linux server (amd64 or arm64), install from your apt repository:
+On a Linux server (amd64 or arm64), install from our apt repository:
 
 ```bash
 curl -fsSL https://apt.jdbnet.co.uk/install/stable.sh | sudo bash
